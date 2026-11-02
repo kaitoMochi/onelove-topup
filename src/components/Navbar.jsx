@@ -63,22 +63,11 @@ export default function Navbar({ currency, setCurrency, onOpenAdmin }) {
               href="https://t.me/onelovetopup"
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden sm:inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-sky-500 to-[#0088cc] hover:from-sky-400 hover:to-cyan-500 text-white font-semibold text-xs transition-all shadow-[0_0_12px_rgba(0,136,204,0.4)] active:scale-95 border border-cyan-400/30"
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-sky-500 to-[#0088cc] hover:from-sky-400 hover:to-cyan-500 text-white font-semibold text-xs transition-all shadow-[0_0_12px_rgba(0,136,204,0.4)] active:scale-95 border border-cyan-400/30"
             >
               <i className="fab fa-telegram text-sm"></i>
               <span>Telegram</span>
             </a>
-
-            {/* Admin Control Button */}
-            <button
-              type="button"
-              onClick={onOpenAdmin}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-950/70 hover:bg-purple-900 border border-purple-500/40 text-purple-200 text-xs font-bold transition-all shadow-sm active:scale-95"
-              title="ផ្ទាំងគ្រប់គ្រងរដ្ឋបាល (Admin Panel)"
-            >
-              <span>⚙️</span>
-              <span className="hidden sm:inline">Admin</span>
-            </button>
           </div>
         </div>
       </nav>

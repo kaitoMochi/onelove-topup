@@ -31,18 +31,6 @@ export default function Footer({ onOpenAdmin }) {
               className="h-4 object-contain brightness-110"
             />
           </div>
-
-          {onOpenAdmin && (
-            <button
-              type="button"
-              onClick={onOpenAdmin}
-              className="text-[11px] text-gray-500 hover:text-cyan-300 transition-colors flex items-center gap-1 font-semibold"
-              title="Admin Control"
-            >
-              <span>⚙️</span>
-              <span>Admin</span>
-            </button>
-          )}
         </div>
 
       </div>
