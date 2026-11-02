@@ -3,7 +3,7 @@ import React from 'react';
 export default function FloatingChat({ hasBottomBar = false }) {
   return (
     <a
-      href="https://t.me/onelovetopup"
+      href="https://t.me/+ZObn61iNEVM3ZGU1"
       target="_blank"
       rel="noopener noreferrer"
       className={`chat-button group ${hasBottomBar ? 'with-bottom-bar' : ''}`}

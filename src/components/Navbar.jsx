@@ -60,7 +60,7 @@ export default function Navbar({ currency, setCurrency, onOpenAdmin }) {
 
             {/* Telegram Channel / Community */}
             <a
-              href="https://t.me/onelovetopup"
+              href="https://t.me/+ZObn61iNEVM3ZGU1"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-sky-500 to-[#0088cc] hover:from-sky-400 hover:to-cyan-500 text-white font-semibold text-xs transition-all shadow-[0_0_12px_rgba(0,136,204,0.4)] active:scale-95 border border-cyan-400/30"
