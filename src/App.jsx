@@ -117,8 +117,8 @@ export default function App() {
         )}
       </main>
 
-      {/* Telegram Floating Support Button */}
-      <FloatingChat />
+      {/* Telegram Floating Support Button (lifts up above sticky checkout bar on game page) */}
+      <FloatingChat hasBottomBar={!!selectedGame && !isAdminView} />
 
       {/* Lisa Topup Style Footer */}
       <Footer onOpenAdmin={handleOpenAdmin} />

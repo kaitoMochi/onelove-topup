@@ -1,12 +1,12 @@
 import React from 'react';
 
-export default function FloatingChat() {
+export default function FloatingChat({ hasBottomBar = false }) {
   return (
     <a
       href="https://t.me/onelovetopup"
       target="_blank"
       rel="noopener noreferrer"
-      className="chat-button group"
+      className={`chat-button group ${hasBottomBar ? 'with-bottom-bar' : ''}`}
       aria-label="Contact Customer Support on Telegram"
     >
       <span className="tracking-wide">ត្រូវការជំនួយ ?</span>

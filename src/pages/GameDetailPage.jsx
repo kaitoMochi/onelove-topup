@@ -854,21 +854,21 @@ export default function GameDetailPage({ game, currency, onBack }) {
       </div>
 
       {/* Sticky Bottom Checkout Bar (Desktop & Mobile) - Dark Neon */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-[#120626]/95 backdrop-blur-md border-t border-purple-500/30 shadow-[0_-4px_30px_rgba(0,0,0,0.8)] py-3 px-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#120626]/95 backdrop-blur-md border-t border-purple-500/30 shadow-[0_-4px_30px_rgba(0,0,0,0.8)] py-2.5 sm:py-3 px-3 sm:px-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
 
-          <div className="flex flex-col">
+          <div className="flex flex-col min-w-0 pr-1 sm:pr-2">
             {verifiedName && (
-              <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 mb-0.5 animate-fadeIn">
-                <span className="text-gray-300">🎮 ឈ្មោះគណនី:</span>
-                <span className="text-[#00f0ff] font-extrabold">{verifiedName}</span>
-                <span className="text-emerald-400 font-bold text-[10px] bg-emerald-500/20 px-1 py-0.2 rounded border border-emerald-500/30">✓</span>
+              <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 mb-0.5 animate-fadeIn truncate">
+                <span className="text-gray-300">🎮</span>
+                <span className="text-[#00f0ff] font-extrabold truncate">{verifiedName}</span>
+                <span className="text-emerald-400 font-bold text-[10px] bg-emerald-500/20 px-1 py-0.2 rounded border border-emerald-500/30 flex-shrink-0">✓</span>
               </div>
             )}
-            <span className="text-xs text-gray-400 font-medium truncate max-w-[200px] sm:max-w-none">
+            <span className="text-[11px] sm:text-xs text-gray-400 font-medium truncate max-w-[150px] sm:max-w-none">
               កញ្ចប់: <strong className="text-white">{selectedPackage?.name || 'សូមជ្រើសរើស'}</strong>
             </span>
-            <div className="text-base sm:text-lg font-black text-[#00f0ff] drop-shadow-[0_0_8px_rgba(0,240,255,0.5)]">
+            <div className="text-sm sm:text-lg font-black text-[#00f0ff] drop-shadow-[0_0_8px_rgba(0,240,255,0.5)]">
               សរុប : <span className="font-['Poppins']">{formatPrice(selectedPackage?.price || 0)}</span>
             </div>
           </div>
@@ -877,18 +877,18 @@ export default function GameDetailPage({ game, currency, onBack }) {
             <button
               type="button"
               disabled={true}
-              className="px-6 sm:px-8 py-3 rounded-full bg-red-950/90 text-red-300 font-extrabold text-xs sm:text-sm shadow border border-red-500/50 cursor-not-allowed flex items-center gap-2 opacity-90"
+              className="flex-shrink-0 px-4 sm:px-8 py-2.5 sm:py-3 rounded-full bg-red-950/90 text-red-300 font-extrabold text-[11px] sm:text-sm shadow border border-red-500/50 cursor-not-allowed flex items-center gap-1.5 sm:gap-2 opacity-90"
               title="ពេជ្រដាច់ស្តុកបណ្តោះអាសន្ន មិនអាចបង់ប្រាក់បានទេ"
             >
               <span>🚫</span>
-              <span>ដាច់ស្តុក (Cannot Pay Now)</span>
+              <span>ដាច់ស្តុក (Cannot Pay)</span>
             </button>
           ) : (
             <button
               type="button"
               onClick={handleCheckout}
               disabled={isGeneratingQR}
-              className="px-7 sm:px-10 py-3 rounded-full bg-gradient-to-r from-purple-600 via-fuchsia-600 to-cyan-500 hover:brightness-110 active:scale-95 text-white font-extrabold text-sm sm:text-base shadow-[0_0_20px_rgba(0,240,255,0.4)] transition-all flex items-center gap-2 disabled:opacity-60 border border-cyan-300/40"
+              className="flex-shrink-0 px-5 sm:px-10 py-2.5 sm:py-3 rounded-full bg-gradient-to-r from-purple-600 via-fuchsia-600 to-cyan-500 hover:brightness-110 active:scale-95 text-white font-extrabold text-xs sm:text-base shadow-[0_0_20px_rgba(0,240,255,0.4)] transition-all flex items-center gap-1.5 sm:gap-2 disabled:opacity-60 border border-cyan-300/40"
             >
               {isGeneratingQR ? (
                 <>

@@ -340,7 +340,7 @@ body {
   position: fixed;
   bottom: 24px;
   right: 20px;
-  z-index: 1000;
+  z-index: 40;
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -354,8 +354,22 @@ body {
   box-shadow: 0 8px 24px rgba(0, 180, 216, 0.45), 0 0 12px rgba(0, 136, 204, 0.3);
   text-decoration: none;
   animation: chatBounce 2.5s ease-in-out infinite;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, bottom 0.2s ease;
   border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Elevated above the sticky checkout bar on game page so it never covers the Pay button */
+.chat-button.with-bottom-bar {
+  bottom: 85px;
+}
+
+@media (max-width: 640px) {
+  .chat-button.with-bottom-bar {
+    bottom: 82px;
+    right: 14px;
+    padding: 7px 12px;
+    font-size: 0.8rem;
+  }
 }
 
 .chat-button:hover {
