@@ -14,21 +14,21 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 const PAYLINK_CONFIG = {
-  baseUrl: 'https://paylinkapi-bot.onrender.com',
-  apiKey: 'plk_live_std_af901733065f27b5608e3c198026bfe6f23d',
-  secret: 'whsec_4074c0b74b3d64a19de5c3f27f5bf022e75e593bfeb5e1955bb69bff212d3cb3',
-  storeName: 'ONE LOVE TOPUP',
-  bakongId: 'onelo@bkrt',
+  baseUrl: process.env.PAYLINK_BASE_URL || 'https://paylinkapi-bot.onrender.com',
+  apiKey: process.env.PAYLINK_API_KEY || 'plk_live_std_af901733065f27b5608e3c198026bfe6f23d',
+  secret: process.env.PAYLINK_SECRET || 'whsec_4074c0b74b3d64a19de5c3f27f5bf022e75e593bfeb5e1955bb69bff212d3cb3',
+  storeName: process.env.STORE_NAME || 'ONE LOVE TOPUP',
+  bakongId: process.env.BAKONG_ID || 'onelo@bkrt',
 };
 
 const SORA_CONFIG = {
-  baseUrl: 'https://app.soratopup.com/api/v1',
-  apiKey: 'sk_7fbe263e907ce46212397f6746d4cd5c7bb65c0932ef666f'
+  baseUrl: process.env.SORA_BASE_URL || 'https://app.soratopup.com/api/v1',
+  apiKey: process.env.SORA_API_KEY || 'sk_7fbe263e907ce46212397f6746d4cd5c7bb65c0932ef666f'
 };
 
 const TELEGRAM_CONFIG = {
-  botToken: '9095657133:AAFL4Yjo5ruXLeHw1BFhkr8KAXp61YF48YE',
-  groupId: '-5416787286',
+  botToken: process.env.TELEGRAM_BOT_TOKEN || '9095657133:AAFL4Yjo5ruXLeHw1BFhkr8KAXp61YF48YE',
+  groupId: process.env.TELEGRAM_GROUP_ID || '-5416787286',
   adminChatIds: ['6389405398', '7283817695']
 };
 
@@ -710,3 +710,4 @@ app.get('*', (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 ONE LOVE TOPUP Production Server running on port ${PORT}`);
 });
+
