@@ -698,7 +698,7 @@ if (fs.existsSync(distDir)) {
 }
 
 // SPA fallback: All non-API routes return index.html
-app.get('*', (req, res) => {
+app.use((req, res) => {
   const indexHtml = path.resolve(distDir, 'index.html');
   if (fs.existsSync(indexHtml)) {
     res.sendFile(indexHtml);
