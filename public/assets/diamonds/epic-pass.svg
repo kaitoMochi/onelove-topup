@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="epicBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#451a03" />
+      <stop offset="50%" stop-color="#b45309" />
+      <stop offset="100%" stop-color="#78350f" />
+    </linearGradient>
+    <linearGradient id="goldBorder" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="50%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+    <filter id="epicGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <circle cx="64" cy="64" r="50" fill="#f59e0b" opacity="0.25" filter="url(#epicGlow)" />
+
+  <g transform="rotate(-3 64 64)">
+    <rect x="22" y="26" width="84" height="76" rx="14" fill="url(#epicBg)" stroke="url(#goldBorder)" stroke-width="2.5" filter="url(#epicGlow)" />
+    <rect x="26" y="30" width="76" height="68" rx="10" fill="none" stroke="#fde047" stroke-width="1" stroke-dasharray="3 2" opacity="0.7" />
+
+    <!-- Crown Centerpiece -->
+    <g transform="translate(64, 58)">
+      <polygon points="-18,12 -12,-8 0,4 12,-8 18,12" fill="#fbbf24" stroke="#78350f" stroke-width="1.5" filter="url(#epicGlow)" />
+      <circle cx="-12" cy="-9" r="2.5" fill="#ef4444" />
+      <circle cx="0" cy="3" r="2.5" fill="#3b82f6" />
+      <circle cx="12" cy="-9" r="2.5" fill="#ef4444" />
+      <rect x="-16" y="10" width="32" height="4" rx="2" fill="#d97706" />
+    </g>
+
+    <rect x="36" y="86" width="56" height="13" rx="6.5" fill="#f59e0b" stroke="#78350f" stroke-width="1" />
+    <text x="64" y="95.5" font-family="'Poppins', sans-serif, Arial" font-size="7.5" font-weight="900" fill="#451a03" text-anchor="middle">EPIC PASS</text>
+  </g>
+</svg>
+

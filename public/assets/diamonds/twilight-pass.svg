@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="twiBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#311042" />
+      <stop offset="50%" stop-color="#581c87" />
+      <stop offset="100%" stop-color="#1e1b4b" />
+    </linearGradient>
+    <linearGradient id="twiBorder" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#c084fc" />
+      <stop offset="50%" stop-color="#f472b6" />
+      <stop offset="100%" stop-color="#38bdf8" />
+    </linearGradient>
+    <filter id="twiGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3.5" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <circle cx="64" cy="64" r="50" fill="#a855f7" opacity="0.3" filter="url(#twiGlow)" />
+
+  <g transform="translate(64, 60)">
+    <!-- Shield -->
+    <path d="M 0,-34 L 32,-20 L 26,14 L 0,36 L -26,14 L -32,-20 Z" fill="url(#twiBg)" stroke="url(#twiBorder)" stroke-width="3" filter="url(#twiGlow)" />
+    <path d="M 0,-28 L 26,-16 L 20,10 L 0,28 L -20,10 L -26,-16 Z" fill="none" stroke="#e879f9" stroke-width="1.2" opacity="0.6" stroke-dasharray="4 2" />
+
+    <!-- Center Diamond Crystal -->
+    <polygon points="0,-16 12,-6 0,16 -12,-6" fill="#f472b6" filter="url(#twiGlow)" />
+    <polygon points="0,-16 12,-6 0,0 -12,-6" fill="#fdf4ff" opacity="0.9" />
+    <polygon points="0,0 12,-6 0,16" fill="#e879f9" />
+    <polygon points="0,0 -12,-6 0,16" fill="#c084fc" />
+  </g>
+
+  <rect x="30" y="92" width="68" height="14" rx="7" fill="#6b21a8" stroke="#f472b6" stroke-width="1.2" />
+  <text x="64" y="102" font-family="'Poppins', sans-serif, Arial" font-size="7.5" font-weight="900" fill="#fdf4ff" text-anchor="middle" letter-spacing="0.5">TWILIGHT PASS</text>
+</svg>
+

@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <!-- Card Gradients -->
+    <linearGradient id="cardBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e103c" />
+      <stop offset="35%" stop-color="#4c1d95" />
+      <stop offset="70%" stop-color="#6d28d9" />
+      <stop offset="100%" stop-color="#2e1065" />
+    </linearGradient>
+    <linearGradient id="cardBorder" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f0ff" />
+      <stop offset="50%" stop-color="#ec4899" />
+      <stop offset="100%" stop-color="#fbbf24" />
+    </linearGradient>
+    <!-- Gold Gradients -->
+    <linearGradient id="goldRibbon" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="50%" stop-color="#fef08a" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+    <!-- Diamond Gradients -->
+    <linearGradient id="diaTop" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#67e8f9" />
+    </linearGradient>
+    <linearGradient id="diaMid" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+    <linearGradient id="diaBottom" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7" />
+      <stop offset="100%" stop-color="#0369a1" />
+    </linearGradient>
+    <!-- Glow Filters -->
+    <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    <filter id="sparkleGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="2" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background Aura -->
+  <circle cx="64" cy="64" r="54" fill="#8b5cf6" opacity="0.25" filter="url(#neonGlow)" />
+  <circle cx="64" cy="64" r="42" fill="#00f0ff" opacity="0.2" filter="url(#neonGlow)" />
+
+  <!-- Main Card Ticket Body -->
+  <g transform="rotate(-4 64 64)">
+    <!-- Outer Card Glow Border -->
+    <rect x="20" y="24" width="88" height="80" rx="16" fill="url(#cardBg)" stroke="url(#cardBorder)" stroke-width="3" filter="url(#neonGlow)" />
+    
+    <!-- Inner Card Texture & Lines -->
+    <rect x="25" y="29" width="78" height="70" rx="12" fill="none" stroke="#a78bfa" stroke-width="1" stroke-dasharray="4 2" opacity="0.6" />
+    <path d="M 20 54 Q 30 54 30 64 Q 30 74 20 74" fill="#0b0318" stroke="url(#cardBorder)" stroke-width="2" />
+    <path d="M 108 54 Q 98 54 98 64 Q 98 74 108 74" fill="#0b0318" stroke="url(#cardBorder)" stroke-width="2" />
+
+    <!-- Top Crown / Stars Banner -->
+    <g transform="translate(64, 40)">
+      <circle cx="-16" cy="0" r="3" fill="#fde047" />
+      <polygon points="0,-7 2,-2 7,-2 3,1 5,6 0,3 -5,6 -3,1 -7,-2 -2,-2" fill="#fde047" filter="url(#sparkleGlow)" />
+      <circle cx="16" cy="0" r="3" fill="#fde047" />
+    </g>
+
+    <!-- Center 3D MLBB Glowing Diamond -->
+    <g transform="translate(64, 66)">
+      <!-- Diamond Glow Aura -->
+      <polygon points="0,-18 18,-6 14,14 0,22 -14,14 -18,-6" fill="#38bdf8" opacity="0.4" filter="url(#neonGlow)" />
+
+      <!-- Diamond Facets -->
+      <!-- Top table facet -->
+      <polygon points="-8,-14 8,-14 16,-4 0,-1 -16,-4" fill="url(#diaTop)" />
+      <!-- Center top star highlight -->
+      <polygon points="0,-14 8,-14 5,-4 0,-1" fill="#ffffff" opacity="0.9" />
+      <polygon points="-8,-14 0,-14 0,-1 -5,-4" fill="#cffafe" opacity="0.9" />
+      
+      <!-- Side facets -->
+      <polygon points="-16,-4 0,-1 -13,12" fill="url(#diaMid)" />
+      <polygon points="16,-4 0,-1 13,12" fill="url(#diaTop)" />
+      
+      <!-- Center bottom facet -->
+      <polygon points="0,-1 13,12 0,20 -13,12" fill="url(#diaBottom)" />
+      <polygon points="0,-1 0,20 13,12" fill="url(#diaMid)" />
+      
+      <!-- Diamond Core Sparkle -->
+      <polygon points="0,-5 2,-1 6,0 2,1 0,5 -2,1 -6,0 -2,-1" fill="#ffffff" filter="url(#sparkleGlow)" />
+    </g>
+
+    <!-- Golden "WEEKLY" Ribbon Badge at Bottom -->
+    <g transform="translate(64, 94)">
+      <!-- Ribbon Base -->
+      <rect x="-34" y="-8" width="68" height="16" rx="8" fill="url(#goldRibbon)" stroke="#78350f" stroke-width="1.2" filter="url(#sparkleGlow)" />
+      <!-- Ribbon Text -->
+      <text x="0" y="3.5" font-family="'Poppins', sans-serif, Arial" font-size="8" font-weight="900" fill="#451a03" text-anchor="middle" letter-spacing="0.5">WEEKLY PASS</text>
+    </g>
+  </g>
+
+  <!-- Floating Sparkles around Card -->
+  <polygon points="22,24 24,28 28,30 24,32 22,36 20,32 16,30 20,28" fill="#00f0ff" filter="url(#sparkleGlow)" />
+  <polygon points="106,32 107,35 110,36 107,37 106,40 105,37 102,36 105,35" fill="#fde047" filter="url(#sparkleGlow)" />
+  <polygon points="98,102 100,105 103,106 100,107 98,110 96,107 93,106 96,105" fill="#38bdf8" filter="url(#sparkleGlow)" />
+</svg>
+

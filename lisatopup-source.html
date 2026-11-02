@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Preconnect to CDN/font origins so render-blocking CSS starts downloading sooner -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- CSRF Token -->
+    <meta name="csrf-token" content="5WYjHraddVFhHHkmQVeWtX1hDq9jI4JAGY4A16aq">
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Oswald:wght@400;700&family=Orbitron:wght@400;700&family=Rajdhani:wght@400;500;700&display=swap" rel="stylesheet" />
+    <!-- Font Awesome -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" rel="stylesheet" />
+<!-- MDB -->
+<link href="https://cdn.jsdelivr.net/npm/mdb-ui-kit@9.3.0/css/mdb.min.css" rel="stylesheet" />
+<!-- Link Swiper's CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@14.3.0/swiper-bundle.min.css" />
+            <link rel="stylesheet" href="https://lisatopup.com/clients/lisatopup/css/logo.css">
+                            <link rel="stylesheet" href="https://lisatopup.com/clients/lisatopup/css/app.min.css">
+                <title>Lisa Topup — Instant Game Top-Up</title>
+<meta name="description" content="Fast and secure game top-up — buy Mobile Legends diamonds, PUBG UC and more with instant delivery and easy ABA / KHQR payment.">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://lisatopup.com">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Lisa Topup">
+<meta property="og:title" content="Lisa Topup — Instant Game Top-Up">
+<meta property="og:description" content="Fast and secure game top-up — buy Mobile Legends diamonds, PUBG UC and more with instant delivery and easy ABA / KHQR payment.">
+<meta property="og:url" content="https://lisatopup.com">
+<meta property="og:locale" content="en_US">
+    <meta property="og:image" content="https://webstorages.sgp1.cdn.digitaloceanspaces.com/static/lisatopup-logo.PNG">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Lisa Topup — Instant Game Top-Up">
+<meta name="twitter:description" content="Fast and secure game top-up — buy Mobile Legends diamonds, PUBG UC and more with instant delivery and easy ABA / KHQR payment.">
+    <meta name="twitter:image" content="https://webstorages.sgp1.cdn.digitaloceanspaces.com/static/lisatopup-logo.PNG">
+
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[{"@type":"Organization","name":"Lisa Topup","url":"https://lisatopup.com","logo":"https://webstorages.sgp1.cdn.digitaloceanspaces.com/static/lisatopup-logo.PNG"},{"@type":"WebSite","name":"Lisa Topup","url":"https://lisatopup.com"}]}
+</script>
+    <link rel="icon" href="https://webstorages.sgp1.cdn.digitaloceanspaces.com/static/lisatopup-logo.PNG">
+
+    
+            <link rel="manifest" href="https://lisatopup.com/clients/lisatopup/manifest.webmanifest">
+        <meta name="theme-color" content="#FF7AB8">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Lisa Topup">
+            <link rel="apple-touch-icon" href="https://lisatopup.com/clients/lisatopup/images/apple-touch-icon.png">
+        <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('/sw.js').catch(function () {});
+            });
+        }
+    </script>
+
+
+                            <link rel="stylesheet" href="https://lisatopup.com/clients/lisatopup/css/index.min.css">
+            </head>
+
+<body>
+    <div id="nav-progress" class="nav-progress" aria-hidden="true"></div>
+<style>
+    .nav-progress {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 2000;
+        height: 3px;
+        width: 0;
+        background: var(--brand-primary, #fbbf24);
+        box-shadow: 0 0 6px rgba(0, 0, 0, 0.25);
+        opacity: 0;
+        pointer-events: none;
+        transition: width 0.3s ease-out, opacity 0.2s;
+    }
+
+    .nav-progress[data-active] {
+        opacity: 1;
+    }
+</style>
+<script src="https://lisatopup.com/assets/js/nav-progress.js?v=1793169567" defer></script>
+
+                
+    <form method="POST" target="aba_webservice"  action="" id="aba_merchant_request">
+        <input type="hidden" name="req_time"/>
+        <input type="hidden" name="merchant_id"/>
+        <input type="hidden" name="tran_id"/>
+        <input type="hidden" name="amount"/>
+        <input type="hidden" name="items"/>
+        <input type="hidden" name="firstname"/>
+        <input type="hidden" name="lastname"/>
+        <input type="hidden" name="payment_option"/>
+        <input type="hidden" name="hash"/>
+        <input type="hidden" name="return_url"/>
+        <input type="hidden" name="continue_success_url"/>
+        <input type="hidden" name="view_type"/>
+    </form>
+    <header>
+        <nav class="navbar navbar-expand-lg our-navbar">
+            <!-- Container wrapper -->
+            <div class="container">
+                <!-- Navbar brand -->
+                <a class="navbar-brand me-2" href="https://lisatopup.com">
+                    <img src="https://webstorages.sgp1.cdn.digitaloceanspaces.com/static/lisatopup-logo-gif.GIF"  alt="Logo Sites" loading="lazy" class="logo" />
+                    
+                </a>
+
+                <!-- Toggle button -->
+                
+
+
+                <!-- Collapsible wrapper -->
+                
+                    <!-- Left links -->
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+
+                    </ul>
+                    <!-- Left links -->
+                    
+                    <!-- Customer Login/Info Section -->
+                    <div class="d-flex align-items-center gap-3" style="margin-left: auto;">
+                                                                                                            <div class="header-telegram-container">
+                                    <script async src="https://telegram.org/js/telegram-widget.js?22"
+                                            data-telegram-login="lisatopupBot"
+                                            data-size="medium"
+                                            data-radius="12"
+                                            data-auth-url="https://lisatopup.com/telegram/callback"
+                                            data-request-access="write">
+                                    </script>
+                                </div>
+                                                                        </div>
+            </div>
+            <!-- Container wrapper -->
+        </nav>
+    </header>
+
+<main role="main">
+    <!-- Level 1: Slider Container -->
+    <div class="container mt-3 mb-3">
+        <div class="swiper mySwiper">
+            <div class="swiper-wrapper">
+                                    <div class="swiper-slide">
+                        <img fetchpriority="high" src="https://webstorages.sgp1.cdn.digitaloceanspaces.com/web/slider/01KWE1VJ08H8DDA7A698J2WK4Z.png" class="h-full"
+                            alt="slider">
+                    </div>
+                            </div>
+            <div class="swiper-button-next"></div>
+            <div class="swiper-button-prev"></div>
+            <div class="swiper-pagination"></div>
+        </div>
+    </div>
+
+    <!-- Container 2: All Games Title -->
+    <div class="container mt-3">
+        <div class="custom-banner">
+            <div class="custom-banner-left"></div>
+            <div class="custom-banner-center">
+                <span class="custom-banner-title">ហ្គេមពេញនិយម</span>
+                <span class="custom-banner-des">ហ្គេម សំរាប់បញ្ចូលទឹកប្រាក់</span>
+            </div>
+            <div class="custom-banner-right"></div>
+        </div>
+    </div>
+
+    <!-- Level 3: Categories Container -->
+    <div class="container">
+        <div class="d-flex flex-column justify-content-center align-items-center pb-1 mb-4">
+            <div class="product-grid">
+                                    <div class="product-card mb-1 ">
+                                                    <a href="https://lisatopup.com/game/mobile-legends" class="card-link">
+                                <div class="card-image-section">
+                                    <img loading="eager" decoding="async" class="card-image"
+                                        src="https://webstorages.sgp1.cdn.digitaloceanspaces.com/web/01KWXDJ5A04F7JZ3PRKDVTQ53V.png"
+                                        alt="Mobile Legends">
+                                    <div class="card-image-shine"></div>
+                                </div>
+
+                                <div class="card-content-section">
+                                    <div class="game-title">Mobile Legends</div>
+                                </div>
+                            </a>
+                                            </div>
+                                    <div class="product-card mb-1 ">
+                                                    <a href="https://lisatopup.com/game/free-fire-khsgmy" class="card-link">
+                                <div class="card-image-section">
+                                    <img loading="eager" decoding="async" class="card-image"
+                                        src="https://webstorages.sgp1.cdn.digitaloceanspaces.com/web/01KXST39QA68QHX6SGMYH8H54Q.png"
+                                        alt="Free Fire (KH/SG/MY)">
+                                    <div class="card-image-shine"></div>
+                                </div>
+
+                                <div class="card-content-section">
+                                    <div class="game-title">Free Fire (KH/SG/MY)</div>
+                                </div>
+                            </a>
+                                            </div>
+                                    <div class="product-card mb-1 ">
+                                                    <a href="https://lisatopup.com/game/pubg-mobile" class="card-link">
+                                <div class="card-image-section">
+                                    <img loading="eager" decoding="async" class="card-image"
+                                        src="https://webstorages.sgp1.cdn.digitaloceanspaces.com/web/01KVVKNNBG91518X6ACEXRAX82.png"
+                                        alt="PUBG Mobile">
+                                    <div class="card-image-shine"></div>
+                                </div>
+
+                                <div class="card-content-section">
+                                    <div class="game-title">PUBG Mobile</div>
+                                </div>
+                            </a>
+                                            </div>
+                                    <div class="product-card mb-1 ">
+                                                    <a href="https://lisatopup.com/game/ff-level-up-pass" class="card-link">
+                                <div class="card-image-section">
+                                    <img loading="eager" decoding="async" class="card-image"
+                                        src="https://webstorages.sgp1.cdn.digitaloceanspaces.com/web/01KVZN9H1FDNA6013TTKMBNENK.png"
+                                        alt="FF Level Up Pass">
+                                    <div class="card-image-shine"></div>
+                                </div>
+
+                                <div class="card-content-section">
+                                    <div class="game-title">FF Level Up Pass</div>
+                                </div>
+                            </a>
+                                            </div>
+                                    <div class="product-card mb-1 ">
+                                                    <a href="https://lisatopup.com/game/magic-chess-gogo" class="card-link">
+                                <div class="card-image-section">
+                                    <img loading="eager" decoding="async" class="card-image"
+                                        src="https://webstorages.sgp1.cdn.digitaloceanspaces.com/web/01KVVKRFWDW4HTA03CN98RM268.png"
+                                        alt="Magic Chess GOGO ">
+                                    <div class="card-image-shine"></div>
+                                </div>
+
+                                <div class="card-content-section">
+                                    <div class="game-title">Magic Chess GOGO </div>
+                                </div>
+                            </a>
+                                            </div>
+                                    <div class="product-card mb-1 ">
+                                                    <a href="https://lisatopup.com/game/mlbbph" class="card-link">
+                                <div class="card-image-section">
+                                    <img loading="eager" decoding="async" class="card-image"
+                                        src="https://webstorages.sgp1.cdn.digitaloceanspaces.com/web/01KZ6CSAAZ0VSPP887TC8SXKNE.png"
+                                        alt="MLBB ហ្វីលីពីន">
+                                    <div class="card-image-shine"></div>
+                                </div>
+
+                                <div class="card-content-section">
+                                    <div class="game-title">MLBB ហ្វីលីពីន</div>
+                                </div>
+                            </a>
+                                            </div>
+                                    <div class="product-card mb-1 ">
+                                                    <a href="https://lisatopup.com/game/honor-of-kings" class="card-link">
+                                <div class="card-image-section">
+                                    <img loading="lazy" decoding="async" class="card-image"
+                                        src="https://webstorages.sgp1.cdn.digitaloceanspaces.com/web/01KWE1856BFEVP7NSJG0YZQPNN.png"
+                                        alt="Honor of Kings">
+                                    <div class="card-image-shine"></div>
+                                </div>
+
+                                <div class="card-content-section">
+                                    <div class="game-title">Honor of Kings</div>
+                                </div>
+                            </a>
+                                            </div>
+                                    <div class="product-card mb-1 restock">
+                                                    <div class="restock-overlay">
+                                <div class="restock-text">RESTOCKING</div>
+                            </div>
+                            <div class="disabled-link">
+                                <div class="card-image-section">
+                                    <img loading="lazy" decoding="async" class="card-image"
+                                        src="https://webstorages.sgp1.cdn.digitaloceanspaces.com/web/01KVVKZSKW4B7B9K8FJFFVG8S2.png"
+                                        alt="Blood Strike">
+                                    <div class="card-image-shine"></div>
+                                </div>
+
+                                <div class="card-content-section">
+                                    <div class="game-title">Blood Strike</div>
+                                </div>
+                            </div>
+                                            </div>
+                                    <div class="product-card mb-1 ">
+                                                    <a href="https://lisatopup.com/game/where-winds-meet" class="card-link">
+                                <div class="card-image-section">
+                                    <img loading="lazy" decoding="async" class="card-image"
+                                        src="https://webstorages.sgp1.cdn.digitaloceanspaces.com/web/01KWE1GGZYESH5VTYQTEC5MFR3.png"
+                                        alt="Where Winds Meet">
+                                    <div class="card-image-shine"></div>
+                                </div>
+
+                                <div class="card-content-section">
+                                    <div class="game-title">Where Winds Meet</div>
+                                </div>
+                            </a>
+                                            </div>
+                                    <div class="product-card mb-1 ">
+                                                    <a href="https://lisatopup.com/game/zepeto" class="card-link">
+                                <div class="card-image-section">
+                                    <img loading="lazy" decoding="async" class="card-image"
+                                        src="https://webstorages.sgp1.cdn.digitaloceanspaces.com/web/01KWE1KYAG5FE3BVS8HN70MWZ2.png"
+                                        alt="Zepeto">
+                                    <div class="card-image-shine"></div>
+                                </div>
+
+                                <div class="card-content-section">
+                                    <div class="game-title">Zepeto</div>
+                                </div>
+                            </a>
+                                            </div>
+                                    <div class="product-card mb-1 ">
+                                                    <a href="https://lisatopup.com/game/telegram" class="card-link">
+                                <div class="card-image-section">
+                                    <img loading="lazy" decoding="async" class="card-image"
+                                        src="https://webstorages.sgp1.cdn.digitaloceanspaces.com/web/01KWHMM8GNNXCQ5GV7GWPGRZ34.png"
+                                        alt="Telegram">
+                                    <div class="card-image-shine"></div>
+                                </div>
+
+                                <div class="card-content-section">
+                                    <div class="game-title">Telegram</div>
+                                </div>
+                            </a>
+                                            </div>
+                            </div>
+        </div>
+    </div>
+
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Dangrek&display=swap');
+
+    .recent-orders {
+        margin-bottom: 20px;
+    }
+
+    .recent-orders-title {
+        color: #fff;
+        font-weight: 700;
+        font-size: 1.1rem;
+        margin: 0 0 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+        font-family: 'Dangrek', cursive;
+    }
+
+    .recent-row {
+        display: flex;
+        gap: 12px;
+        overflow-x: auto;
+        padding-bottom: 6px;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .recent-row::-webkit-scrollbar { height: 6px; }
+    .recent-row::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.4); border-radius: 3px; }
+
+    .recent-card {
+        flex: 0 0 auto;
+        width: 160px;
+        text-decoration: none;
+        background: #fff;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.22);
+        transition: transform 0.2s ease;
+    }
+
+    .recent-card:hover { transform: translateY(-3px); text-decoration: none; }
+    .recent-card img { width: 100%; aspect-ratio: 1 / 1; height: auto; object-fit: cover; display: block; }
+
+    .recent-card .recent-name {
+        display: block;
+        padding: 6px 8px 2px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: #1f2b3e;
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .recent-card .recent-bundle {
+        display: block;
+        padding: 0 8px 6px;
+        font-size: 0.62rem;
+        color: #8a8a8a;
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Product page: recent orders — a title + up to 3 quick-reorder cards. */
+    .recent-last-wrap {
+        margin-bottom: 14px;
+    }
+
+    .recent-last-title {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: #fff;
+        font-weight: 700;
+        font-size: 1rem;
+        margin-bottom: 8px;
+        font-family: 'Dangrek', cursive;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    }
+
+    /* Each bundle as a white quick-reorder card (single-bundle design). */
+    .recent-last {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: #fff;
+        border-radius: 12px;
+        padding: 12px 14px;
+        margin-bottom: 10px;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.2s ease;
+    }
+
+    .recent-last:hover { transform: translateY(-2px); box-shadow: 0 10px 22px rgba(0, 0, 0, 0.24); }
+    .recent-last:active { transform: translateY(0); }
+    .recent-last:last-child { margin-bottom: 0; }
+
+    .recent-last-img {
+        width: 46px;
+        height: 46px;
+        border-radius: 8px;
+        object-fit: cover;
+        flex-shrink: 0;
+        background: #f0f0f3;
+    }
+
+    .recent-last-icon {
+        width: 46px;
+        height: 46px;
+        border-radius: 8px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--primary-color, #1f2b3e);
+        color: #fff;
+        font-size: 20px;
+    }
+
+    .recent-last-info { flex: 1; min-width: 0; }
+
+    .recent-last-bundle {
+        font-size: 0.95rem;
+        font-weight: 800;
+        color: #1f2b3e;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .recent-last-sub {
+        font-size: 0.78rem;
+        color: #8a8a8a;
+        margin-top: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-family: 'Dangrek', cursive;
+    }
+
+    .recent-last-sub b { color: #1f2b3e; }
+
+    .recent-last-btn {
+        flex-shrink: 0;
+        /* Each client's brand color (from its app.css); neutral fallback otherwise. */
+        background: var(--primary-color, #1f2b3e);
+        color: #fff;
+        border: none;
+        border-radius: 999px;
+        padding: 9px 16px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: filter 0.2s ease, transform 0.2s ease;
+        font-family: 'Dangrek', cursive;
+    }
+
+    .recent-last-btn:hover { filter: brightness(1.18); transform: translateY(-1px); }
+
+    @media (max-width: 1200px) { .recent-card { width: 140px; } }
+    @media (max-width: 992px)  { .recent-card { width: 120px; } }
+    @media (max-width: 768px)  { .recent-card { width: 108px; } }
+    @media (max-width: 576px)  { .recent-card { width: 96px; } }
+    @media (max-width: 400px)  { .recent-card { width: 86px; } }
+
+    @media (max-width: 400px) {
+        .recent-last { gap: 10px; padding: 10px 12px; }
+        .recent-last-img,
+        .recent-last-icon { width: 40px; height: 40px; }
+        .recent-last-icon { font-size: 18px; }
+        .recent-last-btn { padding: 8px 12px; font-size: 0.78rem; }
+    }
+</style>
+
+<script>
+    (function () {
+        const KEY = 'recent_orders';
+        const MAX = 8;
+        const CDN = "https:\/\/webstorages.sgp1.cdn.digitaloceanspaces.com";
+
+        function read() {
+            try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { return []; }
+        }
+        function write(list) {
+            try { localStorage.setItem(KEY, JSON.stringify(list.slice(0, MAX))); } catch (e) { /* ignore */ }
+        }
+        function esc(s) { const d = document.createElement('div'); d.textContent = (s == null ? '' : s); return d.innerHTML; }
+        function imgUrl(thumb) { return thumb ? (CDN + '/' + thumb) : ''; }
+        function fmtPrice(p) { const n = parseFloat(p); return isFinite(n) ? n.toFixed(2) : (p || ''); }
+
+        const BUNDLES_PER_GAME = 3;
+
+        // Normalize a game entry's bundles (supports the old single-bundle format).
+        function bundlesOf(o) {
+            if (o.bundles && o.bundles.length) return o.bundles;
+            if (o.bundleName) return [{ id: o.bundleId || null, name: o.bundleName, price: o.price || '' }];
+            return [];
+        }
+
+        // Called from the success page after an order completes.
+        window.recordRecentOrder = function (o) {
+            if (!o || !o.slug) return;
+            const list = read();
+            let entry = list.find((x) => x.slug === o.slug);
+            const rest = list.filter((x) => x.slug !== o.slug);
+
+            if (!entry) {
+                entry = { slug: o.slug, name: '', thumb: '', bundles: [], ts: 0 };
+            }
+            entry.bundles = bundlesOf(entry).slice(); // migrate old format if needed
+            entry.name = o.name || entry.name;
+            entry.thumb = o.thumb || entry.thumb;
+            entry.ts = Date.now();
+            delete entry.bundleId; delete entry.bundleName; delete entry.price; // drop old flat fields
+
+            if (o.bundleName) {
+                const b = { id: o.bundleId || null, name: o.bundleName, price: o.price || '', image: o.image || '' };
+                entry.bundles = entry.bundles.filter((x) => (b.id ? x.id !== b.id : x.name !== b.name));
+                entry.bundles.unshift(b);
+                entry.bundles = entry.bundles.slice(0, BUNDLES_PER_GAME);
+            }
+
+            rest.unshift(entry); // move this game to the front
+            write(rest);
+        };
+
+        // Homepage: recent games row above the product grid.
+        function renderHome() {
+            const grid = document.querySelector('.product-grid, [data-game-grid]');
+            if (!grid) return;
+            const list = read();
+            if (!list.length) return;
+
+            const cards = list.map((o) => {
+                const last = bundlesOf(o)[0];
+                return '<a class="recent-card" href="/game/' + encodeURIComponent(o.slug) + '">'
+                    + (o.thumb ? '<img src="' + esc(imgUrl(o.thumb)) + '" alt="' + esc(o.name) + '" loading="lazy">' : '')
+                    + '<span class="recent-name">' + esc(o.name) + '</span>'
+                    + (last ? '<span class="recent-bundle">' + esc(last.name) + '</span>' : '')
+                    + '</a>';
+            }).join('');
+
+            const wrap = document.createElement('div');
+            wrap.className = 'container recent-orders';
+            wrap.innerHTML = '<div class="recent-orders-title"><i class="fas fa-clock-rotate-left"></i> ការបញ្ជាទិញថ្មីៗ</div>'
+                + '<div class="recent-row">' + cards + '</div>';
+
+            const gridContainer = grid.closest('.container') || grid.parentElement;
+            gridContainer.parentElement.insertBefore(wrap, gridContainer);
+        }
+
+        // Product page: the user's recent orders (up to 3 bundles), each as a card.
+        function renderProduct() {
+            const m = location.pathname.match(/\/game\/([^\/?#]+)/);
+            if (!m) return;
+            const slug = decodeURIComponent(m[1]);
+            const o = read().find((x) => x.slug === slug);
+            const bundles = o ? bundlesOf(o) : [];
+            if (!bundles.length) return;
+
+            // Place it between the ID card and the bundle list (before the bundles row),
+            // falling back to above the ID card if the bundles anchor isn't found.
+            const boxItem = document.getElementById('box-item');
+            let beforeNode = boxItem ? (boxItem.closest('.row') || boxItem) : null;
+            if (!beforeNode) {
+                beforeNode = document.getElementById('box-user')
+                    || document.getElementById('box-player_id')
+                    || document.getElementById('box-character_id');
+            }
+            if (!beforeNode || !beforeNode.parentElement) return;
+
+            const cards = bundles.map((b) =>
+                '<div class="recent-last">'
+                + (b.image
+                    ? '<img class="recent-last-img" src="' + esc(imgUrl(b.image)) + '" alt="">'
+                    : '<div class="recent-last-icon"><i class="fas fa-gem"></i></div>')
+                + '<div class="recent-last-info">'
+                + '<div class="recent-last-bundle">' + esc(b.name) + '</div>'
+                + (b.price ? '<div class="recent-last-sub">$' + esc(fmtPrice(b.price)) + '</div>' : '')
+                + '</div>'
+                + '<button type="button" class="recent-last-btn">ជ្រើសរើសឡើងវិញ</button>'
+                + '</div>'
+            ).join('');
+
+            const wrap = document.createElement('div');
+            wrap.className = 'recent-last-wrap';
+            wrap.innerHTML =
+                '<div class="recent-last-title"><i class="fas fa-clock-rotate-left"></i> ការបញ្ជាទិញចុងក្រោយ</div>'
+                + cards;
+
+            // Whole card re-selects its bundle (or scrolls to the bundle list as a fallback).
+            wrap.querySelectorAll('.recent-last').forEach((cardEl, i) => {
+                cardEl.addEventListener('click', function () {
+                    const b = bundles[i] || {};
+                    const target = b.id && document.getElementById('item-bundle-' + b.id);
+                    if (target) {
+                        target.click();
+                        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    } else {
+                        const list = document.querySelector('.products');
+                        if (list) { list.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+                    }
+                });
+            });
+
+            beforeNode.parentElement.insertBefore(wrap, beforeNode);
+        }
+
+        function init() { renderHome(); renderProduct(); }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    })();
+</script>
+
+
+        
+</main>
+<script src="https://cdn.jsdelivr.net/npm/swiper@14.3.0/swiper-bundle.min.js"></script>
+
+ <script>
+     var swiper = new Swiper(".mySwiper", {
+         spaceBetween: 30,
+         centeredSlides: true,
+         autoplay: {
+             delay: 2500,
+             disableOnInteraction: false,
+         },
+         pagination: {
+             el: ".swiper-pagination",
+             clickable: true,
+         },
+         navigation: {
+             nextEl: ".swiper-button-next",
+             prevEl: ".swiper-button-prev",
+         },
+     });
+ </script>
+
+
+ <footer>
+
+
+            <a href="https://lisatopup.com/lucky-draw" class="lucky-draw-button" data-no-loader>
+                            <span class="lucky-draw-icon">🎰</span>
+                    </a>
+    
+    <a href="https://m.me/lisagamingstore1" target="blank" class="chat-button" aria-label="Chat on Messenger">
+        <span class="chat-button__label">ត្រូវការជំនួយ ?</span>
+                    <i class="fab fa-facebook-messenger chat-icon"></i>
+            </a>
+
+
+     <div class="col-12 bg-white text-center cp-footer">
+
+
+
+         <div class="container d-flex flex-column flex-sm-row justify-content-between p-2  align-items-center">
+
+             <div class="col-12 col-lg-4 col-md-6 col-sm-6">
+
+                 <div class="d-flex flex-wrap justify-content-center justify-content-sm-start align-items-center text-center text-sm-start gap-1"
+                     style="font-size:14px;">
+                     
+                     <span>© 2026 Lisa Topup, All Rights Reserved.</span>
+                                     
+                    
+                </div>
+             </div>
+
+             <div class="d-flex justify-content-center justify-content-sm-end align-items-center payment-accepted">
+                 <span>We accept:</span>
+                 <img src="https://lisatopup.com/images/aba-ui/aba-logo.svg" />
+                 <img src="https://lisatopup.com/images/aba-ui/khqr-logo.svg" />
+             </div>
+ 
+     </div>
+
+              </div>
+
+        
+     <style>
+        :root {
+                                                --color-background-section: #1F2138;
+                                                                --color-text-on-dark: #ffffff;
+                                                                --color-muted-on-dark: #d1d5db;
+                                                                --color-brand-primary: #fbbf24;
+                                                                --color-brand-primary-hover: #f59e0b;
+                                                                --color-card-bg: rgba(255, 255, 255, 0.05);
+                                                                --color-card-bg-hover: rgba(255, 255, 255, 0.1);
+                                                                --color-card-border: rgba(255, 255, 255, 0.1);
+                                                                --color-shadow: rgba(0, 0, 0, 0.2);
+                                                                --color-shadow_light: rgba(0, 0, 0, 0.1);
+                                                                --color-chat-button-bg: #333F50;
+                                                                --color-chat-button-bg-hover: #ffffff;
+                                                                --color-chat-icon-bg: #ffffff;
+                                    }
+     </style>
+
+    
+    <div id="pwa-install" class="pwa-install" role="dialog" aria-label="Install app">
+        <img src="https://lisatopup.com/clients/lisatopup/images/icon-192.png" alt="" class="pwa-install__icon">
+        <div class="pwa-install__text">
+            <strong>Install Lisa Topup</strong>
+            <span>Add to your home screen for faster access.</span>
+            <span id="pwa-install-hint" class="pwa-install__ios"></span>
+        </div>
+        <div class="pwa-install__actions">
+            <button id="pwa-install-btn" type="button" class="pwa-install__btn">Install</button>
+            <button id="pwa-install-close" type="button" class="pwa-install__close" aria-label="Close">&times;</button>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            var INSTALLED_KEY = 'pwa-installed';   // localStorage: permanent, only after a real install
+            var CLOSED_KEY = 'pwa-install-closed';  // sessionStorage: this browsing session only
+            var MANUAL_HINT = 'To install: open your browser menu and choose “Install app” / “Add to Home screen”.';
+            var IOS_HINT = 'Tap the Share button, then “Add to Home Screen”.';
+            var deferredPrompt = null;
+            var popup, hintEl, ready = false;
+
+            try { localStorage.removeItem('pwa-install-dismissed-v2'); } catch (e) {}
+
+            function isStandalone() {
+                return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+            }
+            function isIos() {
+                return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+            }
+            function isInstalled() {
+                try { return localStorage.getItem(INSTALLED_KEY) === '1'; } catch (e) { return false; }
+            }
+            function markInstalled() {
+                try { localStorage.setItem(INSTALLED_KEY, '1'); } catch (e) {}
+            }
+            function isClosed() {
+                try { return sessionStorage.getItem(CLOSED_KEY) === '1'; } catch (e) { return false; }
+            }
+            function markClosed() {
+                try { sessionStorage.setItem(CLOSED_KEY, '1'); } catch (e) {}
+            }
+            function show() { if (popup) { popup.classList.add('is-visible'); } }
+            function hide() { if (popup) { popup.classList.remove('is-visible'); } }
+            function showHint(text) {
+                if (hintEl) { hintEl.textContent = text; hintEl.style.display = 'block'; }
+            }
+            function shouldShow() {
+                return popup && !isStandalone() && !isInstalled() && !isClosed();
+            }
+
+            window.addEventListener('beforeinstallprompt', function (e) {
+                e.preventDefault();
+                deferredPrompt = e;
+                if (ready && shouldShow()) { show(); }
+            });
+
+            document.addEventListener('DOMContentLoaded', function () {
+                ready = true;
+                popup = document.getElementById('pwa-install');
+                if (!shouldShow()) { return; }
+
+                hintEl = document.getElementById('pwa-install-hint');
+                document.getElementById('pwa-install-close').addEventListener('click', function () {
+                    markClosed();
+                    hide();
+                });
+
+                document.getElementById('pwa-install-btn').addEventListener('click', function () {
+                    if (!deferredPrompt) {
+                        showHint(isIos() ? IOS_HINT : MANUAL_HINT);
+                        return;
+                    }
+                    var promptEvent = deferredPrompt;
+                    deferredPrompt = null;
+                    promptEvent.prompt();
+                    promptEvent.userChoice.then(function (choice) {
+                        if (choice && choice.outcome === 'accepted') {
+                            markInstalled();
+                            hide();
+                        } else {
+                            showHint(MANUAL_HINT);
+                        }
+                    });
+                });
+
+                // iOS fires no beforeinstallprompt, so reveal the popup after a short delay.
+                if (isIos()) {
+                    setTimeout(function () { if (shouldShow()) { show(); } }, 1500);
+                }
+
+                if (deferredPrompt) { show(); }
+            });
+
+            window.addEventListener('appinstalled', function () { markInstalled(); hide(); });
+        })();
+    </script>
+ </footer>
+
+</body>
+
+</html>

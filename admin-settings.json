@@ -1,0 +1,25 @@
+{
+  "games": {
+    "mobile-legends": {
+      "coverImage": "/games/mobile-legends-cover.jpg",
+      "diamondIcon": "/assets/diamonds/mlbb-diamond.png",
+      "weeklyPassIcon": "/uploads/weekly_1793640572148.png",
+      "customTitle": "Mobile Legends: Bang Bang"
+    },
+    "free-fire": {
+      "coverImage": "/games/free-fire-cover.jpg",
+      "diamondIcon": "/assets/diamonds/ff-diamond.png",
+      "diamondPackIcon": "/assets/diamonds/ff-diamond-pack.png",
+      "customTitle": "Free Fire Mobile"
+    },
+    "roblox": {
+      "coverImage": "/games/roblox-cover.jpg",
+      "diamondIcon": "/assets/diamonds/robux-gold.svg",
+      "customTitle": "Roblox (Robux)"
+    }
+  },
+  "customPrices": {
+    "mobile-legends": {}
+  },
+  "adminPin": "onelove2026"
+}
