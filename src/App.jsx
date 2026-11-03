@@ -71,7 +71,11 @@ export default function App() {
   };
 
   if (isAdminView) {
-    return <AdminPage onBack={handleBackToHome} />;
+    return (
+      <ErrorBoundary onReset={handleBackToHome}>
+        <AdminPage onBack={handleBackToHome} />
+      </ErrorBoundary>
+    );
   }
 
   return (

@@ -1072,15 +1072,15 @@ export default function AdminPage({ onBack }) {
                   </div>
                 </div>
 
-                <label className={`w-full py-3 px-4 rounded-xl bg-amber-950/60 hover:bg-amber-900/60 border border-amber-400/40 text-amber-200 text-xs font-bold cursor-pointer flex items-center justify-center gap-2 shadow-md transition-all ${isUploadingCover ? 'opacity-70 pointer-events-none' : ''}`}>
-                  <span>{isUploadingCover ? '⏳' : '📷'}</span>
-                  <span>{isUploadingCover ? 'កំពុងដំណើរការ Upload Cover...' : 'Upload រូប Cover ពីទូរស័ព្ទ / PC'}</span>
+                <label className={`w-full py-3 px-4 rounded-xl bg-amber-950/60 hover:bg-amber-900/60 border border-amber-400/40 text-amber-200 text-xs font-bold cursor-pointer flex items-center justify-center gap-2 shadow-md transition-all ${uploadingField === 'cover' ? 'opacity-70 pointer-events-none' : ''}`}>
+                  <span>{uploadingField === 'cover' ? '⏳' : '📷'}</span>
+                  <span>{uploadingField === 'cover' ? 'កំពុងដំណើរការ Upload Cover...' : 'Upload រូប Cover ពីទូរស័ព្ទ / PC'}</span>
                   <input 
                     type="file" 
                     accept="image/*" 
                     className="hidden" 
                     onClick={(e) => { e.target.value = null; }}
-                    onChange={(e) => handleFileUpload(e, setCoverUrl, 'cover', false, setIsUploadingCover)}
+                    onChange={(e) => handleFileUpload(e, setCoverUrl, 'cover', false)}
                   />
                 </label>
               </div>
