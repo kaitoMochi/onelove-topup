@@ -22,9 +22,21 @@ const DEFAULT_SETTINGS = {
       customTitle: 'Roblox (Robux)'
     }
   },
-  customPrices: {},
-  adminPin: 'onelove2026'
+  customPrices: {}
 };
+
+/**
+ * Computes SHA-256 hash with salt for secure, masked authentication.
+ * Prevents raw PIN/password from ever appearing in browser DevTools or Network inspect.
+ */
+export async function hashAdminSecret(secret) {
+  if (!secret) return '';
+  const encoder = new TextEncoder();
+  const data = encoder.encode(`onelove_secure_salt_2026_${String(secret).trim()}`);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 let cachedSettings = null;
 
@@ -38,6 +50,11 @@ export function getAdminSettings() {
       return DEFAULT_SETTINGS;
     }
     const parsed = JSON.parse(raw);
+    // Scrub any legacy stored adminPin from client localStorage
+    if (parsed.adminPin) {
+      delete parsed.adminPin;
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed)); } catch (err) {}
+    }
     // Auto-migrate any stale pass-card.png to vibrant vector mlbb-weekly-pass.svg
     if (parsed.games?.['mobile-legends']?.weeklyPassIcon?.includes('pass-card.png')) {
       parsed.games['mobile-legends'].weeklyPassIcon = '/assets/diamonds/mlbb-weekly-pass.svg';
@@ -156,10 +173,14 @@ export async function uploadAdminAsset(dataUrl, type = 'asset') {
   }
 
   try {
+    const token = typeof window !== 'undefined' ? (sessionStorage.getItem('onelove_admin_token') || '') : '';
     const res = await fetch('/api/admin/upload', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image: dataUrl, type })
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({ image: dataUrl, type, token })
     });
 
     const data = await res.json();

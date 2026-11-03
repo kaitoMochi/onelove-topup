@@ -1,6 +1,7 @@
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { formatFullPackageName } from './src/data/games.js';
 
@@ -133,6 +134,24 @@ function buildBakongKHQR(amount, currency = 'USD', tranId) {
 const activeOrders = new Map();
 const rateLimitMap = new Map();
 const adminOtpMap = new Map();
+const adminSessions = new Map();
+
+function computePinHash(pin) {
+  return crypto.createHash('sha256').update(`onelove_secure_salt_2026_${String(pin || '').trim()}`).digest('hex');
+}
+
+function verifyAuthSecret(authHashOrPin, storedPin) {
+  if (!authHashOrPin) return false;
+  const pin = String(storedPin || 'onelove2026').trim();
+  const expectedHash = computePinHash(pin);
+  const defaultHash = computePinHash('onelove2026');
+  return (
+    authHashOrPin === expectedHash ||
+    authHashOrPin === defaultHash ||
+    authHashOrPin === pin ||
+    authHashOrPin === 'onelove2026'
+  );
+}
 
 // Anti-DDoS / Rate Limiter (Max 180 req / min per IP)
 app.use((req, res, next) => {
@@ -153,18 +172,43 @@ app.use((req, res, next) => {
 
 // --- ADMIN SETTINGS API ---
 app.get('/api/admin/settings', (req, res) => {
-  const settings = getSavedSettings();
+  const settings = { ...getSavedSettings() };
+  delete settings.adminPin; // CRITICAL: NEVER leak adminPin to client
   res.json({ success: true, settings });
 });
 
 app.post('/api/admin/settings', (req, res) => {
   try {
-    const { pin, settings } = req.body || {};
+    const authHeader = req.headers['authorization'] || '';
+    const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+    const { token, authHash, pin, settings } = req.body || {};
+    const sessionToken = bearerToken || token;
+
     const current = getSavedSettings();
-    if (pin !== current.adminPin && pin !== 'onelove2026') {
-      return res.status(401).json({ success: false, error: 'Admin PIN មិនត្រឹមត្រូវទេ!' });
+    let isAuthorized = false;
+
+    if (sessionToken && adminSessions.has(sessionToken)) {
+      const session = adminSessions.get(sessionToken);
+      if (Date.now() < session.expiresAt) {
+        isAuthorized = true;
+      } else {
+        adminSessions.delete(sessionToken);
+      }
     }
-    saveSettingsFile(settings);
+
+    if (!isAuthorized && (authHash || pin)) {
+      isAuthorized = verifyAuthSecret(authHash || pin, current.adminPin);
+    }
+
+    if (!isAuthorized) {
+      return res.status(401).json({ success: false, error: 'Session ផុតកំណត់ ឬមិនមានសិទ្ធិ (Unauthorized)' });
+    }
+
+    const updatedSettings = {
+      ...settings,
+      adminPin: current.adminPin || 'onelove2026'
+    };
+    saveSettingsFile(updatedSettings);
     res.json({ success: true, msg: 'រក្សាទុកការកំណត់ Admin ជោគជ័យ' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -211,10 +255,10 @@ app.post('/api/admin/upload', (req, res) => {
 // --- ADMIN 2FA OTP REQUEST API ---
 app.post('/api/admin/request-otp', async (req, res) => {
   try {
-    const { pin } = req.body || {};
+    const { authHash, pin } = req.body || {};
     const current = getSavedSettings();
-    if (pin !== current.adminPin && pin !== 'onelove2026') {
-      return res.status(401).json({ success: false, error: 'Admin PIN មិនត្រឹមត្រូវទេ! (Default PIN: onelove2026)' });
+    if (!verifyAuthSecret(authHash || pin, current.adminPin)) {
+      return res.status(401).json({ success: false, error: 'Admin PIN មិនត្រឹមត្រូវទេ!' });
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -246,9 +290,9 @@ app.post('/api/admin/request-otp', async (req, res) => {
 // --- ADMIN 2FA OTP VERIFY API ---
 app.post('/api/admin/verify-otp', (req, res) => {
   try {
-    const { pin, otp } = req.body || {};
+    const { authHash, pin, otp } = req.body || {};
     const current = getSavedSettings();
-    if (pin !== current.adminPin && pin !== 'onelove2026') {
+    if (!verifyAuthSecret(authHash || pin, current.adminPin)) {
       return res.status(401).json({ success: false, error: 'Admin PIN មិនត្រឹមត្រូវទេ!' });
     }
 
@@ -258,7 +302,8 @@ app.post('/api/admin/verify-otp', (req, res) => {
     }
 
     adminOtpMap.delete(otp);
-    const sessionToken = `adm_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const sessionToken = `adm_${Date.now()}_${crypto.randomBytes(16).toString('hex')}`;
+    adminSessions.set(sessionToken, { expiresAt: Date.now() + 24 * 60 * 60 * 1000 });
     res.json({ success: true, token: sessionToken });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

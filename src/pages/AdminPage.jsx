@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getSoraProfile, getSoraPackages, getSoraOrders, getSoraRobux } from '../services/sora';
-import { getAdminSettings, saveAdminSettings, removeImageBackground, uploadAdminAsset, getCustomPrice, syncAdminSettingsWithServer } from '../services/adminSettings';
+import { getAdminSettings, saveAdminSettings, removeImageBackground, uploadAdminAsset, getCustomPrice, syncAdminSettingsWithServer, hashAdminSecret } from '../services/adminSettings';
 import { GAMES, formatFullPackageName } from '../data/games';
 
 export default function AdminPage({ onBack }) {
@@ -128,7 +128,7 @@ export default function AdminPage({ onBack }) {
     }
   };
 
-  // Step 1: Request 2FA OTP via Telegram Bot
+  // Step 1: Request 2FA OTP via Telegram Bot (using SHA-256 hash to hide password in Inspect/Network)
   const handleRequestOtp = async (e) => {
     if (e) e.preventDefault();
     if (!pinInput.trim()) {
@@ -141,17 +141,18 @@ export default function AdminPage({ onBack }) {
     setOtpSentNotice('');
 
     try {
+      const authHash = await hashAdminSecret(pinInput.trim());
       const res = await fetch('/api/admin/request-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin: pinInput.trim() })
+        body: JSON.stringify({ authHash })
       });
       const data = await res.json();
       if (res.ok && data.success) {
         setAuthStep('otp');
         setOtpSentNotice(data.message || 'លេខកូដ OTP បានផ្ញើទៅ Telegram រួចរាល់ហើយ!');
       } else {
-        setAuthError(data.error || 'Admin PIN មិនត្រឹមត្រូវទេ! (Default: onelove2026)');
+        setAuthError(data.error || 'Admin PIN មិនត្រឹមត្រូវទេ!');
       }
     } catch (err) {
       setAuthError('Failed to request OTP: ' + err.message);
@@ -160,7 +161,7 @@ export default function AdminPage({ onBack }) {
     }
   };
 
-  // Step 2: Verify 2FA OTP
+  // Step 2: Verify 2FA OTP (uses SHA-256 hash + 6-digit OTP, no plaintext password)
   const handleVerifyOtp = async (e) => {
     if (e) e.preventDefault();
     if (!otpInput.trim()) {
@@ -172,10 +173,11 @@ export default function AdminPage({ onBack }) {
     setAuthError('');
 
     try {
+      const authHash = await hashAdminSecret(pinInput.trim());
       const res = await fetch('/api/admin/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin: pinInput.trim(), otp: otpInput.trim() })
+        body: JSON.stringify({ authHash, otp: otpInput.trim() })
       });
       const data = await res.json();
       if (res.ok && data.success) {
@@ -229,10 +231,14 @@ export default function AdminPage({ onBack }) {
           saveAdminSettings(updated);
 
           try {
+            const token = typeof window !== 'undefined' ? (sessionStorage.getItem('onelove_admin_token') || '') : '';
             await fetch('/api/admin/settings', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ pin: current.adminPin || 'onelove2026', settings: updated })
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+              },
+              body: JSON.stringify({ token, settings: updated })
             });
           } catch (e) {
             console.warn('Sync upload error:', e);
@@ -283,12 +289,17 @@ export default function AdminPage({ onBack }) {
     setSettings(updated);
     saveAdminSettings(updated);
 
-    // Save to server backend
+    // Save to server backend using session token (no plaintext PIN)
     try {
+      const token = typeof window !== 'undefined' ? (sessionStorage.getItem('onelove_admin_token') || '') : '';
+      const authHash = pinInput.trim() ? await hashAdminSecret(pinInput.trim()) : '';
       const res = await fetch('/api/admin/settings', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin: settings.adminPin || pinInput || 'onelove2026', settings: updated })
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ token, authHash, settings: updated })
       });
       const data = await res.json();
       if (res.ok && data.success) {
@@ -324,6 +335,16 @@ export default function AdminPage({ onBack }) {
     setDiamondUrl(defaultDiamond);
     setWeeklyUrl(defaultWeekly);
     setCustomPrices({});
+  };
+
+  const handleLogout = () => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('onelove_admin_token');
+    }
+    setIsAuthenticated(false);
+    setAuthStep('pin');
+    setPinInput('');
+    setOtpInput('');
   };
 
   // Get current game's static and live packages for price editor
@@ -512,6 +533,13 @@ export default function AdminPage({ onBack }) {
               className="px-3.5 py-1.5 rounded-xl bg-black/40 hover:bg-black/70 border border-purple-500/30 text-xs font-semibold text-gray-300 hover:text-white transition-colors flex items-center gap-1.5"
             >
               ← ទៅកាន់ហាង (View Store)
+            </button>
+            <button
+              onClick={handleLogout}
+              className="px-3.5 py-1.5 rounded-xl bg-red-950/50 hover:bg-red-900/70 border border-red-500/40 text-xs font-semibold text-red-300 hover:text-white transition-colors flex items-center gap-1.5"
+              title="Sign out of Admin Session"
+            >
+              🚪 ចាកចេញ (Logout)
             </button>
             <div>
               <h1 className="text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-cyan-300">

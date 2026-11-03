@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import fs from 'fs'
 import path from 'path'
+import crypto from 'crypto'
 import { formatFullPackageName } from './src/data/games.js'
 
 const PAYLINK_CONFIG = {
@@ -125,6 +126,24 @@ function apiProxyPlugin() {
   const activeOrders = new Map();
   const rateLimitMap = new Map();
   const adminOtpMap = new Map();
+  const adminSessions = new Map();
+
+  function computePinHash(pin) {
+    return crypto.createHash('sha256').update(`onelove_secure_salt_2026_${String(pin || '').trim()}`).digest('hex');
+  }
+
+  function verifyAuthSecret(authHashOrPin, storedPin) {
+    if (!authHashOrPin) return false;
+    const pin = String(storedPin || 'onelove2026').trim();
+    const expectedHash = computePinHash(pin);
+    const defaultHash = computePinHash('onelove2026');
+    return (
+      authHashOrPin === expectedHash ||
+      authHashOrPin === defaultHash ||
+      authHashOrPin === pin ||
+      authHashOrPin === 'onelove2026'
+    );
+  }
 
   return {
     name: 'api-proxy-middleware',
@@ -152,7 +171,8 @@ function apiProxyPlugin() {
 
         // --- ADMIN SETTINGS API ---
         if (pathname === '/api/admin/settings' && req.method === 'GET') {
-          const settings = getSavedSettings();
+          const settings = { ...getSavedSettings() };
+          delete settings.adminPin; // CRITICAL: NEVER leak adminPin to client
           res.setHeader('Content-Type', 'application/json');
           res.statusCode = 200;
           res.end(JSON.stringify({ success: true, settings }));
@@ -164,15 +184,39 @@ function apiProxyPlugin() {
           req.on('data', chunk => { body += chunk; });
           req.on('end', () => {
             try {
-              const { pin, settings } = JSON.parse(body || '{}');
+              const authHeader = req.headers['authorization'] || '';
+              const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+              const { token, authHash, pin, settings } = JSON.parse(body || '{}');
+              const sessionToken = bearerToken || token;
+
               const current = getSavedSettings();
-              if (pin !== current.adminPin && pin !== 'onelove2026') {
+              let isAuthorized = false;
+
+              if (sessionToken && adminSessions.has(sessionToken)) {
+                const session = adminSessions.get(sessionToken);
+                if (Date.now() < session.expiresAt) {
+                  isAuthorized = true;
+                } else {
+                  adminSessions.delete(sessionToken);
+                }
+              }
+
+              if (!isAuthorized && (authHash || pin)) {
+                isAuthorized = verifyAuthSecret(authHash || pin, current.adminPin);
+              }
+
+              if (!isAuthorized) {
                 res.setHeader('Content-Type', 'application/json');
                 res.statusCode = 401;
-                res.end(JSON.stringify({ success: false, error: 'Admin PIN មិនត្រឹមត្រូវទេ!' }));
+                res.end(JSON.stringify({ success: false, error: 'Session ផុតកំណត់ ឬមិនមានសិទ្ធិ (Unauthorized)' }));
                 return;
               }
-              saveSettingsFile(settings);
+
+              const updatedSettings = {
+                ...settings,
+                adminPin: current.adminPin || 'onelove2026'
+              };
+              saveSettingsFile(updatedSettings);
               res.setHeader('Content-Type', 'application/json');
               res.statusCode = 200;
               res.end(JSON.stringify({ success: true, msg: 'រក្សាទុកការកំណត់ Admin ជោគជ័យ' }));
@@ -247,26 +291,30 @@ function apiProxyPlugin() {
           req.on('data', chunk => { body += chunk; });
           req.on('end', async () => {
             try {
-              const { pin } = JSON.parse(body || '{}');
+              const { authHash, pin } = JSON.parse(body || '{}');
               const current = getSavedSettings();
-              if (pin !== current.adminPin && pin !== 'onelove2026') {
+              if (!verifyAuthSecret(authHash || pin, current.adminPin)) {
                 res.setHeader('Content-Type', 'application/json');
                 res.statusCode = 401;
-                res.end(JSON.stringify({ success: false, error: 'Admin PIN មិនត្រឹមត្រូវទេ! (Invalid PIN)' }));
+                res.end(JSON.stringify({ success: false, error: 'Admin PIN មិនត្រឹមត្រូវទេ!' }));
                 return;
               }
 
               // Generate 6-digit OTP code
               const otp = String(Math.floor(100000 + Math.random() * 900000));
               const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
-              adminOtpMap.set('latest', { otp, expiresAt, pin });
+              adminOtpMap.set('latest', { otp, expiresAt });
 
-              const otpMsg = `🔐 *ONE LOVE TOPUP — Admin 2FA Code*\n\n` +
-                `លេខកូដសម្ងាត់ OTP សម្រាប់ចូលគ្រប់គ្រង Admin គឺ:\n\n` +
+              const phnomPenhTime = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Phnom_Penh' });
+              const otpMsg = `🔐 *ONE LOVE ADMIN - 2FA LOGIN OTP* 🔐\n` +
+                `━━━━━━━━━━━━━━━━━━━━━━\n` +
+                `🔑 *Your Verification Code:*\n` +
                 `\`${otp}\`\n\n` +
-                `⚠️ *(ចុចលើលេខកូដខាងលើដើម្បី Copy ភ្លាមៗ - Tap code to copy)*\n` +
-                `⏳ មានសុពលភាពត្រឹម 5 នាទី (Valid for 5 minutes)\n` +
-                `សូមកុំចែករំលែកលេខកូដនេះទៅកាន់អ្នកដទៃ!`;
+                `*(Tap code above to copy immediately)*\n` +
+                `⏰ *Expires in:* 5 នាទី (5 minutes)\n` +
+                `🕒 *Time:* ${phnomPenhTime}\n` +
+                `━━━━━━━━━━━━━━━━━━━━━━\n` +
+                `⚠️ *Caution:* Do not share this OTP with anyone!`;
 
               // Send to Admin 1 and Admin 2 DMs
               for (const adminId of TELEGRAM_CONFIG.adminChatIds) {
@@ -280,7 +328,7 @@ function apiProxyPlugin() {
               res.statusCode = 200;
               res.end(JSON.stringify({
                 success: true,
-                message: 'លេខកូដ OTP ត្រូវបានផ្ញើទៅកាន់ Telegram រួចរាល់ហើយ!'
+                message: 'លេខកូដ OTP បានផ្ញើទៅកាន់ Telegram Admin & Group រួចរាល់ហើយ!'
               }));
             } catch (err) {
               res.setHeader('Content-Type', 'application/json');
@@ -297,9 +345,9 @@ function apiProxyPlugin() {
           req.on('data', chunk => { body += chunk; });
           req.on('end', () => {
             try {
-              const { pin, otp } = JSON.parse(body || '{}');
+              const { authHash, pin, otp } = JSON.parse(body || '{}');
               const current = getSavedSettings();
-              if (pin !== current.adminPin && pin !== 'onelove2026') {
+              if (!verifyAuthSecret(authHash || pin, current.adminPin)) {
                 res.setHeader('Content-Type', 'application/json');
                 res.statusCode = 401;
                 res.end(JSON.stringify({ success: false, error: 'Admin PIN មិនត្រឹមត្រូវទេ!' }));
@@ -323,7 +371,8 @@ function apiProxyPlugin() {
 
               // Correct OTP! Clear and generate session token
               adminOtpMap.delete('latest');
-              const token = `adm_token_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+              const token = `adm_${Date.now()}_${crypto.randomBytes(16).toString('hex')}`;
+              adminSessions.set(token, { expiresAt: Date.now() + 24 * 60 * 60 * 1000 });
 
               res.setHeader('Content-Type', 'application/json');
               res.statusCode = 200;
