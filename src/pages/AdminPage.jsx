@@ -265,20 +265,25 @@ export default function AdminPage({ onBack }) {
 
           try {
             const token = typeof window !== 'undefined' ? (sessionStorage.getItem('onelove_admin_token') || '') : '';
-            await fetch('/api/admin/settings', {
+            const authHash = pinInput.trim() ? await hashAdminSecret(pinInput.trim()) : '';
+            const syncRes = await fetch('/api/admin/settings', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
                 ...(token ? { 'Authorization': `Bearer ${token}` } : {})
               },
-              body: JSON.stringify({ token, settings: updated })
+              body: JSON.stringify({ token, authHash, settings: updated })
             });
+            const syncData = await syncRes.json().catch(() => null);
+            if (syncRes.ok && syncData?.success) {
+              setSaveSuccessMsg('✓ បាន Upload និងផ្លាស់ប្តូររូបភាពទៅកាន់ Store ជោគជ័យ 100%!');
+            } else if (syncRes.status === 401) {
+              setSaveSuccessMsg('⚠️ Session ផុតកំណត់ សូម Login ឡើងវិញដើម្បីរក្សាទុក');
+              setIsAuthenticated(false);
+            }
           } catch (e) {
             console.warn('Sync upload error:', e);
           }
-
-          setSaveSuccessMsg('✓ បាន Upload និងផ្លាស់ប្តូររូបភាពទៅកាន់ Store ជោគជ័យ 100%!');
-          setTimeout(() => setSaveSuccessMsg(''), 4000);
         } catch (err) {
           console.error('File process error:', err);
         } finally {
@@ -299,25 +304,26 @@ export default function AdminPage({ onBack }) {
   };
 
   const handleSaveAll = async () => {
+    const existingGame = settings.games?.[selectedGame] || {};
     const updated = {
       ...settings,
       games: {
         ...settings.games,
         [selectedGame]: {
-          ...settings.games[selectedGame],
-          coverImage: coverUrl.trim(),
-          diamondIcon: diamondUrl.trim(),
-          weeklyPassIcon: weeklyUrl.trim(),
+          ...existingGame,
+          coverImage: coverUrl.trim() || existingGame.coverImage || '',
+          diamondIcon: diamondUrl.trim() || existingGame.diamondIcon || '',
+          weeklyPassIcon: weeklyUrl.trim() || existingGame.weeklyPassIcon || '',
           ...(selectedGame === 'mobile-legends' ? {
-            weeklyEliteIcon: weeklyEliteUrl.trim(),
-            monthlyEpicIcon: monthlyEpicUrl.trim(),
-            twilightIcon: twilightUrl.trim()
+            weeklyEliteIcon: weeklyEliteUrl.trim() || existingGame.weeklyEliteIcon || '',
+            monthlyEpicIcon: monthlyEpicUrl.trim() || existingGame.monthlyEpicIcon || '',
+            twilightIcon: twilightUrl.trim() || existingGame.twilightIcon || ''
           } : {}),
           ...(selectedGame === 'free-fire' ? {
-            weeklyLiteIcon: ffWeeklyLiteUrl.trim(),
-            monthlyCardIcon: ffMonthlyUrl.trim(),
-            levelUpIcon: ffLevelUpUrl.trim(),
-            comboIcon: ffComboUrl.trim()
+            weeklyLiteIcon: ffWeeklyLiteUrl.trim() || existingGame.weeklyLiteIcon || '',
+            monthlyCardIcon: ffMonthlyUrl.trim() || existingGame.monthlyCardIcon || '',
+            levelUpIcon: ffLevelUpUrl.trim() || existingGame.levelUpIcon || '',
+            comboIcon: ffComboUrl.trim() || existingGame.comboIcon || ''
           } : {})
         }
       },
@@ -345,11 +351,14 @@ export default function AdminPage({ onBack }) {
         },
         body: JSON.stringify({ token, authHash, settings: updated })
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.success) {
         setSaveSuccessMsg('✓ បានរក្សាទុកការកំណត់ និងរូបភាពថ្មីទៅកាន់ User Interface ជោគជ័យ 100%!');
+      } else if (res.status === 401) {
+        setSaveSuccessMsg('⚠️ Session ផុតកំណត់ សូមបញ្ចូល PIN ឡើងវិញ (Session Expired)');
+        setIsAuthenticated(false);
       } else {
-        setSaveSuccessMsg('⚠️ ' + (data.error || 'បរាជ័យក្នុងការរក្សាទុកទៅ Server'));
+        setSaveSuccessMsg('⚠️ ' + (data?.error || 'បរាជ័យក្នុងការរក្សាទុកទៅ Server'));
       }
     } catch (e) {
       setSaveSuccessMsg('✓ រក្សាទុកជោគជ័យ!');

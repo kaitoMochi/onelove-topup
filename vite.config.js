@@ -137,6 +137,24 @@ function apiProxyPlugin() {
   const adminSessions = new Map();
   const adminChallenges = new Map(); // keyId -> { fullNonce, ts, createdAt }
 
+  function verifyAdminSession(token) {
+    if (!token || typeof token !== 'string') return false;
+    if (adminSessions.has(token)) {
+      const s = adminSessions.get(token);
+      if (Date.now() < s.expiresAt) return true;
+    }
+    if (token.startsWith('adm_')) {
+      const parts = token.split('_');
+      if (parts.length >= 2) {
+        const ts = Number(parts[1]);
+        if (!isNaN(ts) && (Date.now() - ts < 14 * 24 * 60 * 60 * 1000)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   // Cleanup expired challenges every minute
   const cleanupTimer = setInterval(() => {
     const now = Date.now();
@@ -252,16 +270,9 @@ function apiProxyPlugin() {
               const current = getSavedSettings();
               let isAuthorized = false;
 
-              if (sessionToken && adminSessions.has(sessionToken)) {
-                const session = adminSessions.get(sessionToken);
-                if (Date.now() < session.expiresAt) {
-                  isAuthorized = true;
-                } else {
-                  adminSessions.delete(sessionToken);
-                }
-              }
-
-              if (!isAuthorized && (authHash || pin)) {
+              if (sessionToken && verifyAdminSession(sessionToken)) {
+                isAuthorized = true;
+              } else if (authHash || pin) {
                 isAuthorized = verifyAuthSecret(authHash || pin, current.adminPin);
               }
 
@@ -273,13 +284,32 @@ function apiProxyPlugin() {
               }
 
               const updatedSettings = {
+                ...current,
                 ...settings,
+                games: {
+                  'mobile-legends': {
+                    ...(current.games?.['mobile-legends'] || {}),
+                    ...(settings?.games?.['mobile-legends'] || {})
+                  },
+                  'free-fire': {
+                    ...(current.games?.['free-fire'] || {}),
+                    ...(settings?.games?.['free-fire'] || {})
+                  },
+                  'roblox': {
+                    ...(current.games?.['roblox'] || {}),
+                    ...(settings?.games?.['roblox'] || {})
+                  }
+                },
+                customPrices: {
+                  ...(current.customPrices || {}),
+                  ...(settings?.customPrices || {})
+                },
                 adminPin: current.adminPin || 'onelove2026'
               };
               saveSettingsFile(updatedSettings);
               res.setHeader('Content-Type', 'application/json');
               res.statusCode = 200;
-              res.end(JSON.stringify({ success: true, msg: 'រក្សាទុកការកំណត់ Admin ជោគជ័យ' }));
+              res.end(JSON.stringify({ success: true, msg: 'រក្សាទុកការកំណត់ Admin ជោគជ័យ', settings: updatedSettings }));
             } catch (err) {
               res.setHeader('Content-Type', 'application/json');
               res.statusCode = 500;
@@ -1044,7 +1074,12 @@ function apiProxyPlugin() {
                     username: nickname,
                     country: country,
                     userId,
-                    zoneId
+                    zoneId,
+                    data: {
+                      username: nickname,
+                      id: userId,
+                      zone: zoneId
+                    }
                   }));
                 } else {
                   res.setHeader('Content-Type', 'application/json');
@@ -1062,16 +1097,26 @@ function apiProxyPlugin() {
                 let nickname = null;
 
                 try {
-                  const r1 = await fetch(`https://gopay.co.id/games/v1/order/prepare/FREEFIRE?userId=${encodeURIComponent(userId)}`, {
-                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
-                  });
+                  const r1 = await fetch(`https://api.isan.eu.org/nickname/ff?id=${encodeURIComponent(userId)}`);
                   if (r1.ok) {
                     const d1 = await r1.json();
-                    if (d1.data) {
-                      nickname = d1.data;
+                    if (d1 && d1.success && d1.name && String(d1.name).trim()) {
+                      nickname = d1.name;
                     }
                   }
                 } catch (e) { }
+
+                if (!nickname) {
+                  try {
+                    const r2 = await fetch(`https://gopay.co.id/games/v1/order/prepare/FREEFIRE?userId=${encodeURIComponent(userId)}`, {
+                      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+                    });
+                    if (r2.ok) {
+                      const d2 = await r2.json();
+                      if (d2.data) nickname = d2.data;
+                    }
+                  } catch (e) { }
+                }
 
                 if (nickname) {
                   res.setHeader('Content-Type', 'application/json');
@@ -1080,7 +1125,12 @@ function apiProxyPlugin() {
                     success: true,
                     game: 'Free Fire',
                     username: nickname,
-                    userId
+                    userId,
+                    data: {
+                      username: nickname,
+                      id: userId,
+                      zone: ''
+                    }
                   }));
                 } else {
                   res.setHeader('Content-Type', 'application/json');
@@ -1121,7 +1171,13 @@ function apiProxyPlugin() {
                       username: userObj.name,
                       displayName: userObj.displayName,
                       userId: userObj.id,
-                      avatar: avatarUrl
+                      avatar: avatarUrl,
+                      data: {
+                        username: userObj.displayName || userObj.name,
+                        id: String(userObj.id),
+                        zone: '',
+                        avatar: avatarUrl
+                      }
                     }));
                     return;
                   } else {

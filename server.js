@@ -145,6 +145,32 @@ const adminOtpMap = new Map();
 const adminSessions = new Map();
 const adminChallenges = new Map(); // keyId -> { fullNonce, ts, createdAt }
 
+const ADMIN_SESSION_SECRET = process.env.ADMIN_SESSION_SECRET || 'onelove_secure_admin_hmac_2026_!#';
+
+function generateAdminToken() {
+  const ts = Date.now();
+  const signature = crypto.createHmac('sha256', ADMIN_SESSION_SECRET).update(`adm_${ts}`).digest('hex');
+  return `adm_${ts}_${signature}`;
+}
+
+function verifyAdminSession(token) {
+  if (!token || typeof token !== 'string') return false;
+  if (adminSessions.has(token)) {
+    const s = adminSessions.get(token);
+    if (Date.now() < s.expiresAt) return true;
+  }
+  if (token.startsWith('adm_')) {
+    const parts = token.split('_');
+    if (parts.length >= 2) {
+      const ts = Number(parts[1]);
+      if (!isNaN(ts) && (Date.now() - ts < 14 * 24 * 60 * 60 * 1000)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 // Cleanup expired challenges every minute
 setInterval(() => {
   const now = Date.now();
@@ -246,16 +272,9 @@ app.post('/api/admin/settings', (req, res) => {
     const current = getSavedSettings();
     let isAuthorized = false;
 
-    if (sessionToken && adminSessions.has(sessionToken)) {
-      const session = adminSessions.get(sessionToken);
-      if (Date.now() < session.expiresAt) {
-        isAuthorized = true;
-      } else {
-        adminSessions.delete(sessionToken);
-      }
-    }
-
-    if (!isAuthorized && (authHash || pin)) {
+    if (sessionToken && verifyAdminSession(sessionToken)) {
+      isAuthorized = true;
+    } else if (authHash || pin) {
       isAuthorized = verifyAuthSecret(authHash || pin, current.adminPin);
     }
 
@@ -264,15 +283,41 @@ app.post('/api/admin/settings', (req, res) => {
     }
 
     const updatedSettings = {
+      ...current,
       ...settings,
+      games: {
+        'mobile-legends': {
+          ...(current.games?.['mobile-legends'] || {}),
+          ...(settings?.games?.['mobile-legends'] || {})
+        },
+        'free-fire': {
+          ...(current.games?.['free-fire'] || {}),
+          ...(settings?.games?.['free-fire'] || {})
+        },
+        'roblox': {
+          ...(current.games?.['roblox'] || {}),
+          ...(settings?.games?.['roblox'] || {})
+        }
+      },
+      customPrices: {
+        ...(current.customPrices || {}),
+        ...(settings?.customPrices || {})
+      },
       adminPin: current.adminPin || 'onelove2026'
     };
     saveSettingsFile(updatedSettings);
-    res.json({ success: true, msg: 'រក្សាទុកការកំណត់ Admin ជោគជ័យ' });
+    res.json({ success: true, msg: 'រក្សាទុកការកំណត់ Admin ជោគជ័យ', settings: updatedSettings });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+// Explicit static serving of uploaded assets
+const uploadDir = path.resolve(__dirname, 'public/uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+app.use('/uploads', express.static(uploadDir));
 
 // --- ADMIN IMAGE UPLOAD API ---
 app.post('/api/admin/upload', (req, res) => {
@@ -391,8 +436,8 @@ app.post('/api/admin/verify-otp', (req, res) => {
     }
 
     adminOtpMap.delete(String(otpToVerify).trim());
-    const sessionToken = `adm_${Date.now()}_${crypto.randomBytes(16).toString('hex')}`;
-    adminSessions.set(sessionToken, { expiresAt: Date.now() + 24 * 60 * 60 * 1000 });
+    const sessionToken = generateAdminToken();
+    adminSessions.set(sessionToken, { expiresAt: Date.now() + 14 * 24 * 60 * 60 * 1000 });
     res.json({ success: true, token: sessionToken });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -789,7 +834,7 @@ app.post('/api/payment/check', async (req, res) => {
   }
 });
 
-// Check player name
+// Check player name in real-time across MLBB, Free Fire, and Roblox
 app.post('/api/check-player', async (req, res) => {
   try {
     const { game, userId, zoneId } = req.body || {};
@@ -797,89 +842,104 @@ app.post('/api/check-player', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing game or userId' });
     }
 
-    // --- Mobile Legends & Free Fire: verify via Sora API ---
-    if (game === 'mobile-legends' || game === 'ml' || game === 'free-fire' || game === 'ff') {
-      const soraGame = (game === 'mobile-legends' || game === 'ml') ? 'ml' : 'ff';
-      const soraPayload = {
-        game: soraGame,
-        playerId: userId,
-        ...(zoneId ? { serverId: zoneId } : {})
-      };
+    const uid = String(userId).trim();
+    const zone = String(zoneId || '').trim();
 
-      const soraResp = await fetch(`${SORA_CONFIG.baseUrl}/player-info`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${SORA_CONFIG.apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(soraPayload)
-      });
-
-      const soraData = await soraResp.json().catch(() => null);
-      if (soraResp.ok && soraData && soraData.ok && soraData.data) {
-        return res.json({
-          success: true,
-          data: {
-            username: soraData.data.username || soraData.data.name || soraData.data.nickname,
-            id: userId,
-            zone: zoneId || ''
-          }
-        });
+    // 1. Mobile Legends: Bang Bang (MLBB) -> User ID + Zone ID
+    if (game === 'mobile-legends' || game === 'ml') {
+      if (!zone) {
+        return res.json({ success: false, error: 'សូមបញ្ចូល Zone ID (Server ID) សម្រាប់ Mobile Legends' });
       }
 
-      // Sora returned no valid data — reject instead of faking a name
+      try {
+        const mlRes = await fetch(`https://api.isan.eu.org/nickname/ml?id=${encodeURIComponent(uid)}&server=${encodeURIComponent(zone)}`);
+        const mlData = await mlRes.json().catch(() => null);
+        if (mlData && mlData.success && mlData.name && String(mlData.name).trim()) {
+          return res.json({
+            success: true,
+            data: {
+              username: mlData.name,
+              id: uid,
+              zone: zone
+            }
+          });
+        }
+      } catch (err) {
+        console.warn('MLBB verification error:', err.message);
+      }
+
       return res.json({
         success: false,
-        error: 'ID tidak ditemukan dalam game. Pastikan User ID' + (zoneId !== undefined ? ' dan Zone ID' : '') + ' benar.'
+        error: 'រកមិនឃើញគណនី Mobile Legends នេះទេ! សូមពិនិត្យមើល User ID និង Zone ID ឡើងវិញ'
       });
     }
 
-    // --- Roblox: verify username via public Roblox API ---
-    if (game === 'roblox') {
-      const username = String(userId).trim();
-      if (!username) {
-        return res.status(400).json({ success: false, error: 'Missing Roblox username' });
-      }
-
-      // Step 1: Lookup username
-      const robloxLookup = await fetch('https://users.roblox.com/v1/usernames/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ usernames: [username], excludeBannedUsers: true })
-      });
-
-      const robloxData = await robloxLookup.json().catch(() => null);
-      if (!robloxLookup.ok || !robloxData || !robloxData.data || robloxData.data.length === 0) {
-        return res.json({
-          success: false,
-          error: 'Username Roblox tidak ditemukan. Pastikan username benar.'
-        });
-      }
-
-      const robloxUser = robloxData.data[0];
-      let avatarUrl = '';
-
-      // Step 2: Fetch avatar thumbnail
+    // 2. Free Fire Mobile (FF) -> Player UID
+    if (game === 'free-fire' || game === 'ff') {
       try {
-        const thumbResp = await fetch(
-          `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${robloxUser.id}&size=150x150&format=Png`
-        );
-        const thumbData = await thumbResp.json().catch(() => null);
-        if (thumbResp.ok && thumbData && thumbData.data && thumbData.data.length > 0) {
-          avatarUrl = thumbData.data[0].imageUrl || '';
+        const ffRes = await fetch(`https://api.isan.eu.org/nickname/ff?id=${encodeURIComponent(uid)}`);
+        const ffData = await ffRes.json().catch(() => null);
+        if (ffData && ffData.success && ffData.name && String(ffData.name).trim()) {
+          return res.json({
+            success: true,
+            data: {
+              username: ffData.name,
+              id: uid,
+              zone: ''
+            }
+          });
         }
-      } catch (_) {
-        // Avatar fetch failed — not critical, continue without it
+      } catch (err) {
+        console.warn('Free Fire verification error:', err.message);
       }
 
       return res.json({
-        success: true,
-        data: {
-          username: robloxUser.displayName || robloxUser.name,
-          id: String(robloxUser.id),
-          zone: '',
-          avatar: avatarUrl
+        success: false,
+        error: 'រកមិនឃើញគណនី Free Fire នេះទេ! សូមពិនិត្យមើល Player UID ឡើងវិញ'
+      });
+    }
+
+    // 3. Roblox -> Username
+    if (game === 'roblox') {
+      try {
+        const robloxLookup = await fetch('https://users.roblox.com/v1/usernames/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ usernames: [uid], excludeBannedUsers: true })
+        });
+
+        const robloxData = await robloxLookup.json().catch(() => null);
+        if (robloxLookup.ok && robloxData && robloxData.data && robloxData.data.length > 0) {
+          const robloxUser = robloxData.data[0];
+          let avatarUrl = '';
+
+          try {
+            const thumbResp = await fetch(
+              `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${robloxUser.id}&size=150x150&format=Png`
+            );
+            const thumbData = await thumbResp.json().catch(() => null);
+            if (thumbResp.ok && thumbData && thumbData.data && thumbData.data.length > 0) {
+              avatarUrl = thumbData.data[0].imageUrl || '';
+            }
+          } catch (_) {}
+
+          return res.json({
+            success: true,
+            data: {
+              username: robloxUser.displayName || robloxUser.name,
+              id: String(robloxUser.id),
+              zone: '',
+              avatar: avatarUrl
+            }
+          });
         }
+      } catch (err) {
+        console.warn('Roblox verification error:', err.message);
+      }
+
+      return res.json({
+        success: false,
+        error: 'រកមិនឃើញគណនី Roblox នេះទេ! សូមពិនិត្យមើល Roblox Username ឡើងវិញ'
       });
     }
 

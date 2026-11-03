@@ -1,6 +1,21 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { getAdminSettings } from '../services/adminSettings';
 
 export default function Navbar({ currency, setCurrency, onOpenAdmin }) {
+  const [siteLogo, setSiteLogo] = useState(() => {
+    const s = getAdminSettings();
+    return s.siteLogo || '/logo.jpg';
+  });
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      const s = getAdminSettings();
+      if (s.siteLogo) setSiteLogo(s.siteLogo);
+    };
+    window.addEventListener('onelove_settings_updated', handleUpdate);
+    return () => window.removeEventListener('onelove_settings_updated', handleUpdate);
+  }, []);
+
   return (
     <header className="sticky top-0 z-50">
       <nav
@@ -15,7 +30,7 @@ export default function Navbar({ currency, setCurrency, onOpenAdmin }) {
           <a href="/" className="flex items-center gap-2.5 sm:gap-3 group">
             <div className="relative w-10 h-10 sm:w-11 sm:h-11 rounded-full p-0.5 bg-gradient-to-tr from-purple-600 via-cyan-400 to-fuchsia-500 shadow-md overflow-hidden flex items-center justify-center group-hover:shadow-[0_0_15px_rgba(0,240,255,0.6)] transition-all">
               <img
-                src="/logo.jpg"
+                src={siteLogo}
                 alt="ONE LOVE TOPUP"
                 className="w-full h-full object-cover rounded-full group-hover:scale-105 transition-transform duration-300"
               />

@@ -1,8 +1,16 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { getGameAsset } from '../services/adminSettings';
 
 export default function ProductCard({ game, onSelect }) {
-  const displayCover = getGameAsset(game.id, 'cover', game.image);
+  const [displayCover, setDisplayCover] = useState(() => getGameAsset(game.id, 'cover', game.image));
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setDisplayCover(getGameAsset(game.id, 'cover', game.image));
+    };
+    window.addEventListener('onelove_settings_updated', handleUpdate);
+    return () => window.removeEventListener('onelove_settings_updated', handleUpdate);
+  }, [game.id, game.image]);
 
   return (
     <div 
@@ -16,6 +24,7 @@ export default function ProductCard({ game, onSelect }) {
         {/* 1:1 Aspect ratio square image */}
         <div className="card-image-section relative">
           <img 
+            key={displayCover}
             src={displayCover} 
             alt={game.name} 
             loading="lazy" 

@@ -141,6 +141,20 @@ export function saveAdminSettings(settings) {
   }
 }
 
+function mergeGameConfig(defaultGame, serverGame, localGame) {
+  const result = { ...defaultGame, ...(serverGame || {}) };
+  if (localGame) {
+    for (const [key, val] of Object.entries(localGame)) {
+      if (val && typeof val === 'string' && (val.startsWith('/uploads/') || val.startsWith('data:'))) {
+        if (!result[key] || result[key] === defaultGame[key]) {
+          result[key] = val;
+        }
+      }
+    }
+  }
+  return result;
+}
+
 /**
  * Syncs settings with server backend (/api/admin/settings)
  * Ensures every visitor and device gets updated prices and images automatically!
@@ -151,16 +165,18 @@ export async function syncAdminSettingsWithServer() {
     if (res.ok) {
       const data = await res.json();
       if (data && data.success && data.settings) {
+        const local = getAdminSettings();
         const merged = {
           ...DEFAULT_SETTINGS,
           ...data.settings,
           games: {
-            'mobile-legends': { ...DEFAULT_SETTINGS.games['mobile-legends'], ...(data.settings.games?.['mobile-legends'] || {}) },
-            'free-fire': { ...DEFAULT_SETTINGS.games['free-fire'], ...(data.settings.games?.['free-fire'] || {}) },
-            'roblox': { ...DEFAULT_SETTINGS.games['roblox'], ...(data.settings.games?.['roblox'] || {}) },
+            'mobile-legends': mergeGameConfig(DEFAULT_SETTINGS.games['mobile-legends'], data.settings.games?.['mobile-legends'], local.games?.['mobile-legends']),
+            'free-fire': mergeGameConfig(DEFAULT_SETTINGS.games['free-fire'], data.settings.games?.['free-fire'], local.games?.['free-fire']),
+            'roblox': mergeGameConfig(DEFAULT_SETTINGS.games['roblox'], data.settings.games?.['roblox'], local.games?.['roblox']),
           },
           customPrices: {
             ...(DEFAULT_SETTINGS.customPrices || {}),
+            ...(local.customPrices || {}),
             ...(data.settings.customPrices || {})
           }
         };
