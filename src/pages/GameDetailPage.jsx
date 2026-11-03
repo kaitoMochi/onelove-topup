@@ -120,7 +120,7 @@ export default function GameDetailPage({ game, currency, onBack }) {
                   price: price,
                   bonus: `+Bonus 💎`,
                   points: `+${Math.max(1, Math.round(price))} ពិន្ទុ`,
-                  img: getGameAsset('mobile-legends', 'diamond', '/assets/diamonds/mlbb-diamond.png')
+                  img: getPackageCustomIcon('mobile-legends', code, '/assets/diamonds/mlbb-diamond.png')
                 });
               }
             });
@@ -142,7 +142,7 @@ export default function GameDetailPage({ game, currency, onBack }) {
                   topTag: code === '3Weekly' ? 'Full Ticket' : null,
                   bonus: 'Weekly Pass',
                   points: `+${Math.max(1, Math.round(price))} ពិន្ទុ`,
-                  img: getGameAsset('mobile-legends', 'weekly', '/assets/diamonds/mlbb-weekly-pass.svg')
+                  img: getPackageCustomIcon('mobile-legends', code, '/assets/diamonds/mlbb-weekly-pass.svg')
                 });
               }
             });
@@ -167,7 +167,7 @@ export default function GameDetailPage({ game, currency, onBack }) {
                   price: price,
                   bonus: sub.bonus,
                   points: `+${Math.max(1, Math.round(price))} ពិន្ទុ`,
-                  img: getGameAsset('mobile-legends', 'weekly', sub.icon)
+                  img: getPackageCustomIcon('mobile-legends', sub.code, sub.icon)
                 });
               }
             });
@@ -188,38 +188,38 @@ export default function GameDetailPage({ game, currency, onBack }) {
               let section = 'diamonds';
               let sectionTitle = 'Diamonds';
               let category = 'diamonds';
-              let img = getGameAsset('free-fire', 'diamond', price >= 3 ? '/assets/diamonds/ff-diamond-pack.png' : '/assets/diamonds/ff-diamond.png');
+              let img = getPackageCustomIcon('free-fire', code, price >= 3 ? '/assets/diamonds/ff-diamond-pack.png' : '/assets/diamonds/ff-diamond.png');
               let bonus = '+Bonus 💎';
 
               if (codeLower.includes('weeklylite')) {
                 section = 'weekly';
                 sectionTitle = 'Weekly Card & Lite';
                 category = 'weekly';
-                img = '/assets/diamonds/ff-weekly-lite.svg';
+                img = getPackageCustomIcon('free-fire', code, '/assets/diamonds/ff-weekly-lite.svg');
                 bonus = 'Lite Diamonds';
               } else if (codeLower.includes('weekly') || nameLower.includes('w.card')) {
                 section = 'weekly';
                 sectionTitle = 'Weekly Card & Lite';
                 category = 'weekly';
-                img = getGameAsset('free-fire', 'weekly', '/assets/diamonds/ff-weekly-card.svg');
+                img = getPackageCustomIcon('free-fire', code, '/assets/diamonds/ff-weekly-card.svg');
                 bonus = 'VIP Member';
               } else if (codeLower.includes('monthly') || nameLower.includes('m.card')) {
                 section = 'monthly';
                 sectionTitle = 'Monthly Card';
                 category = 'monthly';
-                img = '/assets/diamonds/ff-monthly-card.svg';
+                img = getPackageCustomIcon('free-fire', code, '/assets/diamonds/ff-monthly-card.svg');
                 bonus = 'Super VIP';
               } else if (codeLower.startsWith('l') || nameLower.includes('lvup')) {
                 section = 'special';
                 sectionTitle = 'Level Up & Combos';
                 category = 'special';
-                img = '/assets/diamonds/ff-levelup.svg';
+                img = getPackageCustomIcon('free-fire', code, '/assets/diamonds/ff-levelup.svg');
                 bonus = 'Level Up Pass';
               } else if (codeLower.includes('mwl') || nameLower.includes('m+w+l')) {
                 section = 'special';
                 sectionTitle = 'Level Up & Combos';
                 category = 'special';
-                img = '/assets/diamonds/ff-combo.svg';
+                img = getPackageCustomIcon('free-fire', code, '/assets/diamonds/ff-combo.svg');
                 bonus = 'M+W+L Combo';
               }
 
