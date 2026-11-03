@@ -3,12 +3,20 @@
     "mobile-legends": {
       "coverImage": "/games/mobile-legends-cover.jpg",
       "diamondIcon": "/assets/diamonds/mlbb-diamond.png",
-      "weeklyPassIcon": "/uploads/weekly_1793640572148.png",
+      "weeklyPassIcon": "/assets/diamonds/mlbb-weekly-pass.svg",
+      "weeklyEliteIcon": "/assets/diamonds/elite-pass.svg",
+      "monthlyEpicIcon": "/assets/diamonds/epic-pass.svg",
+      "twilightIcon": "/assets/diamonds/twilight-pass.svg",
       "customTitle": "Mobile Legends: Bang Bang"
     },
     "free-fire": {
       "coverImage": "/games/free-fire-cover.jpg",
       "diamondIcon": "/assets/diamonds/ff-diamond.png",
+      "weeklyPassIcon": "/assets/diamonds/ff-weekly-card.svg",
+      "weeklyLiteIcon": "/assets/diamonds/ff-weekly-lite.svg",
+      "monthlyCardIcon": "/assets/diamonds/ff-monthly-card.svg",
+      "levelUpIcon": "/assets/diamonds/ff-levelup.svg",
+      "comboIcon": "/assets/diamonds/ff-combo.svg",
       "diamondPackIcon": "/assets/diamonds/ff-diamond-pack.png",
       "customTitle": "Free Fire Mobile"
     },

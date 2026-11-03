@@ -7,12 +7,19 @@ const DEFAULT_SETTINGS = {
       coverImage: '/games/mobile-legends-cover.jpg',
       diamondIcon: '/assets/diamonds/mlbb-diamond.png',
       weeklyPassIcon: '/assets/diamonds/mlbb-weekly-pass.svg',
+      weeklyEliteIcon: '/assets/diamonds/elite-pass.svg',
+      monthlyEpicIcon: '/assets/diamonds/epic-pass.svg',
+      twilightIcon: '/assets/diamonds/twilight-pass.svg',
       customTitle: 'Mobile Legends: Bang Bang'
     },
     'free-fire': {
       coverImage: '/games/free-fire-cover.jpg',
       diamondIcon: '/assets/diamonds/ff-diamond.png',
       weeklyPassIcon: '/assets/diamonds/ff-weekly-card.svg',
+      weeklyLiteIcon: '/assets/diamonds/ff-weekly-lite.svg',
+      monthlyCardIcon: '/assets/diamonds/ff-monthly-card.svg',
+      levelUpIcon: '/assets/diamonds/ff-levelup.svg',
+      comboIcon: '/assets/diamonds/ff-combo.svg',
       diamondPackIcon: '/assets/diamonds/ff-diamond-pack.png',
       customTitle: 'Free Fire Mobile'
     },
@@ -202,6 +209,70 @@ export function getCustomPrice(gameId, packageCode, defaultPrice) {
     if (!isNaN(p) && p > 0) return p;
   }
   return Number(defaultPrice);
+}
+
+/**
+ * Returns the exact custom icon uploaded by the admin for any package,
+ * cleanly distinguishing between regular Diamonds and every specific Event Pass
+ * (Weekly Diamond Pass, Weekly Elite, Monthly Epic, Twilight, Free Fire W.Card, W.Lite, M.Card, Level Up, Combo)
+ */
+export function getPackageCustomIcon(gameId, code, defaultFallback = '') {
+  const settings = getAdminSettings();
+  const cfg = settings.games?.[gameId] || {};
+  const codeStr = String(code || '').trim();
+  const codeLower = codeStr.toLowerCase();
+
+  if (gameId === 'mobile-legends' || gameId === 'ml') {
+    // 1. Weekly Diamond Pass (Weekly, 2Weekly, 3Weekly, 4Weekly, 5Weekly, 10Weekly)
+    if (codeLower === 'weekly' || /^\d+weekly$/i.test(codeStr)) {
+      return cfg.weeklyPassIcon || '/assets/diamonds/mlbb-weekly-pass.svg';
+    }
+    // 2. Weekly Elite Pass
+    if (codeLower === 'weeklyelite') {
+      return cfg.weeklyEliteIcon || '/assets/diamonds/elite-pass.svg';
+    }
+    // 3. Monthly Epic Pass
+    if (codeLower === 'monthlyepic') {
+      return cfg.monthlyEpicIcon || '/assets/diamonds/epic-pass.svg';
+    }
+    // 4. Twilight Pass
+    if (codeLower === 'twilight') {
+      return cfg.twilightIcon || '/assets/diamonds/twilight-pass.svg';
+    }
+    // 5. Normal Diamonds (numeric)
+    return cfg.diamondIcon || defaultFallback || '/assets/diamonds/mlbb-diamond.png';
+  }
+
+  if (gameId === 'free-fire' || gameId === 'ff') {
+    // 1. Weekly Membership (W.Card: weekly, 2weekly... 20weekly)
+    if (codeLower === 'weekly' || (/^\d+weekly$/i.test(codeStr) && !codeLower.includes('lite'))) {
+      return cfg.weeklyPassIcon || '/assets/diamonds/ff-weekly-card.svg';
+    }
+    // 2. Weekly Lite (W.Lite: weeklylite, 2weeklylite... 20weeklylite)
+    if (codeLower === 'weeklylite' || /^\d+weeklylite$/i.test(codeStr)) {
+      return cfg.weeklyLiteIcon || '/assets/diamonds/ff-weekly-lite.svg';
+    }
+    // 3. Monthly Membership (M.Card: monthly, 2monthly... 20monthly)
+    if (codeLower === 'monthly' || /^\d+monthly$/i.test(codeStr)) {
+      return cfg.monthlyCardIcon || '/assets/diamonds/ff-monthly-card.svg';
+    }
+    // 4. Level Up Pass (lup, l6, l10, l15, l20, l25, l30)
+    if (codeLower === 'lup' || /^l\d+$/i.test(codeStr)) {
+      return cfg.levelUpIcon || '/assets/diamonds/ff-levelup.svg';
+    }
+    // 5. Combo (mwl, 2mwl, 3mwl, 5mwl)
+    if (codeLower === 'mwl' || /\d*mwl/i.test(codeStr)) {
+      return cfg.comboIcon || '/assets/diamonds/ff-combo.svg';
+    }
+    // 6. Normal Diamonds (numeric)
+    return cfg.diamondIcon || defaultFallback || '/assets/diamonds/ff-diamond.png';
+  }
+
+  if (gameId === 'roblox') {
+    return cfg.diamondIcon || defaultFallback || '/assets/diamonds/robux-gold.svg';
+  }
+
+  return defaultFallback;
 }
 
 /**

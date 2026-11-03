@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getSoraProfile, getSoraPackages, getSoraOrders, getSoraRobux } from '../services/sora';
-import { getAdminSettings, saveAdminSettings, removeImageBackground, uploadAdminAsset, getCustomPrice, syncAdminSettingsWithServer, hashAdminSecret, createSecureEnvelope } from '../services/adminSettings';
+import { getAdminSettings, saveAdminSettings, removeImageBackground, uploadAdminAsset, getCustomPrice, syncAdminSettingsWithServer, hashAdminSecret, createSecureEnvelope, getPackageCustomIcon } from '../services/adminSettings';
 import { GAMES, formatFullPackageName } from '../data/games';
 
 export default function AdminPage({ onBack }) {
@@ -17,10 +17,8 @@ export default function AdminPage({ onBack }) {
   const [settings, setSettings] = useState(getAdminSettings());
   const [selectedGame, setSelectedGame] = useState('mobile-legends');
 
-  // Upload loading states
-  const [isUploadingDiamond, setIsUploadingDiamond] = useState(false);
-  const [isUploadingWeekly, setIsUploadingWeekly] = useState(false);
-  const [isUploadingCover, setIsUploadingCover] = useState(false);
+  // Upload loading state by field key
+  const [uploadingField, setUploadingField] = useState('');
 
   // Check existing session token on mount & sync remote settings
   useEffect(() => {
@@ -28,9 +26,16 @@ export default function AdminPage({ onBack }) {
       if (s) {
         setSettings(s);
         const cfg = s.games?.[selectedGame] || {};
-        if (cfg.coverImage) setCoverUrl(cfg.coverImage);
-        if (cfg.diamondIcon) setDiamondUrl(cfg.diamondIcon);
-        if (cfg.weeklyPassIcon) setWeeklyUrl(cfg.weeklyPassIcon);
+        setCoverUrl(cfg.coverImage || '');
+        setDiamondUrl(cfg.diamondIcon || '');
+        setWeeklyUrl(cfg.weeklyPassIcon || '');
+        setWeeklyEliteUrl(cfg.weeklyEliteIcon || '');
+        setMonthlyEpicUrl(cfg.monthlyEpicIcon || '');
+        setTwilightUrl(cfg.twilightIcon || '');
+        setFfWeeklyLiteUrl(cfg.weeklyLiteIcon || '');
+        setFfMonthlyUrl(cfg.monthlyCardIcon || '');
+        setFfLevelUpUrl(cfg.levelUpIcon || '');
+        setFfComboUrl(cfg.comboIcon || '');
       }
     });
 
@@ -51,15 +56,22 @@ export default function AdminPage({ onBack }) {
   const [autoCutBg, setAutoCutBg] = useState(true);
 
   // Form inputs for current selected game
-  const currentGameConfig = settings.games?.[selectedGame] || {
-    coverImage: '',
-    diamondIcon: '',
-    weeklyPassIcon: ''
-  };
+  const currentGameConfig = settings.games?.[selectedGame] || {};
 
   const [coverUrl, setCoverUrl] = useState(currentGameConfig.coverImage || '');
   const [diamondUrl, setDiamondUrl] = useState(currentGameConfig.diamondIcon || '');
+
+  // MLBB specific event pass icons
   const [weeklyUrl, setWeeklyUrl] = useState(currentGameConfig.weeklyPassIcon || '');
+  const [weeklyEliteUrl, setWeeklyEliteUrl] = useState(currentGameConfig.weeklyEliteIcon || '');
+  const [monthlyEpicUrl, setMonthlyEpicUrl] = useState(currentGameConfig.monthlyEpicIcon || '');
+  const [twilightUrl, setTwilightUrl] = useState(currentGameConfig.twilightIcon || '');
+
+  // Free Fire specific event pass icons
+  const [ffWeeklyLiteUrl, setFfWeeklyLiteUrl] = useState(currentGameConfig.weeklyLiteIcon || '');
+  const [ffMonthlyUrl, setFfMonthlyUrl] = useState(currentGameConfig.monthlyCardIcon || '');
+  const [ffLevelUpUrl, setFfLevelUpUrl] = useState(currentGameConfig.levelUpIcon || '');
+  const [ffComboUrl, setFfComboUrl] = useState(currentGameConfig.comboIcon || '');
 
   // Package prices state: { [packageCode]: price }
   const [customPrices, setCustomPrices] = useState(settings.customPrices?.[selectedGame] || {});
@@ -70,6 +82,13 @@ export default function AdminPage({ onBack }) {
     setCoverUrl(cfg.coverImage || '');
     setDiamondUrl(cfg.diamondIcon || '');
     setWeeklyUrl(cfg.weeklyPassIcon || '');
+    setWeeklyEliteUrl(cfg.weeklyEliteIcon || '');
+    setMonthlyEpicUrl(cfg.monthlyEpicIcon || '');
+    setTwilightUrl(cfg.twilightIcon || '');
+    setFfWeeklyLiteUrl(cfg.weeklyLiteIcon || '');
+    setFfMonthlyUrl(cfg.monthlyCardIcon || '');
+    setFfLevelUpUrl(cfg.levelUpIcon || '');
+    setFfComboUrl(cfg.comboIcon || '');
     setCustomPrices(settings.customPrices?.[selectedGame] || {});
     loadSoraData(selectedGame);
   }, [selectedGame]);
@@ -196,12 +215,12 @@ export default function AdminPage({ onBack }) {
     }
   };
 
-  // Upload handler with automatic background removal & server storage
-  const handleFileUpload = async (e, targetSetter, type, cutBackground = false, setLoadingState = null) => {
+  // Upload handler with automatic background removal & server storage for ANY specific event pass
+  const handleFileUpload = async (e, targetSetter, fieldKey, cutBackground = false) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (setLoadingState) setLoadingState(true);
+    setUploadingField(fieldKey);
 
     try {
       const reader = new FileReader();
@@ -212,8 +231,22 @@ export default function AdminPage({ onBack }) {
             result = await removeImageBackground(result);
           }
           // Direct server upload to get static URL
-          const uploadedUrl = await uploadAdminAsset(result, type);
+          const uploadedUrl = await uploadAdminAsset(result, fieldKey);
           targetSetter(uploadedUrl);
+
+          const fieldPropMap = {
+            cover: 'coverImage',
+            diamond: 'diamondIcon',
+            weekly: 'weeklyPassIcon',
+            weeklyElite: 'weeklyEliteIcon',
+            monthlyEpic: 'monthlyEpicIcon',
+            twilight: 'twilightIcon',
+            weeklyLite: 'weeklyLiteIcon',
+            monthlyCard: 'monthlyCardIcon',
+            levelUp: 'levelUpIcon',
+            combo: 'comboIcon'
+          };
+          const propName = fieldPropMap[fieldKey] || fieldKey;
 
           // Auto-save immediately so the image is active across entire store
           const current = getAdminSettings();
@@ -223,7 +256,7 @@ export default function AdminPage({ onBack }) {
               ...current.games,
               [selectedGame]: {
                 ...current.games[selectedGame],
-                [type === 'weekly' ? 'weeklyPassIcon' : (type === 'diamond' ? 'diamondIcon' : 'coverImage')]: uploadedUrl
+                [propName]: uploadedUrl
               }
             }
           };
@@ -249,12 +282,12 @@ export default function AdminPage({ onBack }) {
         } catch (err) {
           console.error('File process error:', err);
         } finally {
-          if (setLoadingState) setLoadingState(false);
+          setUploadingField('');
         }
       };
       reader.readAsDataURL(file);
     } catch (err) {
-      if (setLoadingState) setLoadingState(false);
+      setUploadingField('');
     }
   };
 
@@ -274,7 +307,18 @@ export default function AdminPage({ onBack }) {
           ...settings.games[selectedGame],
           coverImage: coverUrl.trim(),
           diamondIcon: diamondUrl.trim(),
-          ...(selectedGame !== 'roblox' ? { weeklyPassIcon: weeklyUrl.trim() } : {})
+          weeklyPassIcon: weeklyUrl.trim(),
+          ...(selectedGame === 'mobile-legends' ? {
+            weeklyEliteIcon: weeklyEliteUrl.trim(),
+            monthlyEpicIcon: monthlyEpicUrl.trim(),
+            twilightIcon: twilightUrl.trim()
+          } : {}),
+          ...(selectedGame === 'free-fire' ? {
+            weeklyLiteIcon: ffWeeklyLiteUrl.trim(),
+            monthlyCardIcon: ffMonthlyUrl.trim(),
+            levelUpIcon: ffLevelUpUrl.trim(),
+            comboIcon: ffComboUrl.trim()
+          } : {})
         }
       },
       customPrices: {
@@ -317,23 +361,25 @@ export default function AdminPage({ onBack }) {
   const handleResetDefaults = () => {
     if (!window.confirm('តើអ្នកពិតជាចង់កំណត់រូបភាព និងតម្លៃដើមឡើងវិញមែនទេ?')) return;
     
-    let defaultCover = '/games/mobile-legends-cover.jpg';
-    let defaultDiamond = '/assets/diamonds/mlbb-diamond.png';
-    let defaultWeekly = '/assets/diamonds/mlbb-weekly-pass.svg';
-
-    if (selectedGame === 'free-fire') {
-      defaultCover = '/games/free-fire-cover.jpg';
-      defaultDiamond = '/assets/diamonds/ff-diamond.png';
-      defaultWeekly = '/assets/diamonds/ff-weekly-card.svg';
+    if (selectedGame === 'mobile-legends') {
+      setCoverUrl('/games/mobile-legends-cover.jpg');
+      setDiamondUrl('/assets/diamonds/mlbb-diamond.png');
+      setWeeklyUrl('/assets/diamonds/mlbb-weekly-pass.svg');
+      setWeeklyEliteUrl('/assets/diamonds/elite-pass.svg');
+      setMonthlyEpicUrl('/assets/diamonds/epic-pass.svg');
+      setTwilightUrl('/assets/diamonds/twilight-pass.svg');
+    } else if (selectedGame === 'free-fire') {
+      setCoverUrl('/games/free-fire-cover.jpg');
+      setDiamondUrl('/assets/diamonds/ff-diamond.png');
+      setWeeklyUrl('/assets/diamonds/ff-weekly-card.svg');
+      setFfWeeklyLiteUrl('/assets/diamonds/ff-weekly-lite.svg');
+      setFfMonthlyUrl('/assets/diamonds/ff-monthly-card.svg');
+      setFfLevelUpUrl('/assets/diamonds/ff-levelup.svg');
+      setFfComboUrl('/assets/diamonds/ff-combo.svg');
     } else if (selectedGame === 'roblox') {
-      defaultCover = '/games/roblox-cover.jpg';
-      defaultDiamond = '/assets/diamonds/robux-gold.svg';
-      defaultWeekly = '';
+      setCoverUrl('/games/roblox-cover.jpg');
+      setDiamondUrl('/assets/diamonds/robux-gold.svg');
     }
-
-    setCoverUrl(defaultCover);
-    setDiamondUrl(defaultDiamond);
-    setWeeklyUrl(defaultWeekly);
     setCustomPrices({});
   };
 
@@ -658,88 +704,353 @@ export default function AdminPage({ onBack }) {
                     <label className="text-xs font-black text-cyan-300 uppercase tracking-wider flex items-center gap-1.5">
                       <span>{selectedGame === 'roblox' ? '🧱' : '💎'}</span>
                       <span>
-                        {selectedGame === 'roblox' ? 'រូបតំណាង ROBUX LOGO' : 'រូបតំណាងពេជ្រ (DIAMOND ICON)'}
+                        {selectedGame === 'roblox' ? 'រូបតំណាង ROBUX LOGO' : 'រូបតំណាងពេជ្រធម្មតា (DIAMONDS)'}
                       </span>
                     </label>
                     <p className="text-[11px] text-gray-400 mt-0.5">
-                      Upload រូប 1 សន្លឹក វានឹងបង្ហាញលើ **គ្រប់កញ្ចប់ទាំងអស់** នៃ {currentGameObj.name}!
+                      {selectedGame === 'roblox' ? 'បង្ហាញលើគ្រប់កញ្ចប់ Robux Codes' : 'បង្ហាញលើកញ្ចប់ពេជ្រធម្មតាទាំងអស់ (Normal Diamonds)'}
                     </p>
                   </div>
                   {/* Live Preview */}
                   <div className="w-14 h-14 rounded-xl bg-black/60 border border-cyan-400/50 flex items-center justify-center p-1.5 shadow-[0_0_12px_rgba(0,240,255,0.3)]">
                     <img 
-                      src={diamondUrl || (selectedGame === 'roblox' ? '/assets/diamonds/robux-gold.svg' : '/assets/diamonds/mlbb-diamond.png')} 
+                      src={diamondUrl || (selectedGame === 'roblox' ? '/assets/diamonds/robux-gold.svg' : (selectedGame === 'free-fire' ? '/assets/diamonds/ff-diamond.png' : '/assets/diamonds/mlbb-diamond.png'))} 
                       alt="Diamond Preview" 
                       className="w-full h-full object-contain"
                     />
                   </div>
                 </div>
 
-                {/* Big direct upload button for Phone / PC without typing URL */}
-                <label className={`w-full py-3 px-4 rounded-xl bg-gradient-to-r from-purple-700 via-fuchsia-600 to-cyan-600 hover:brightness-110 active:scale-[0.99] text-white text-xs font-bold cursor-pointer flex items-center justify-center gap-2 shadow-md transition-all ${isUploadingDiamond ? 'opacity-70 pointer-events-none' : ''}`}>
-                  <span>{isUploadingDiamond ? '⏳' : '📷'}</span>
-                  <span>{isUploadingDiamond ? 'កំពុងដំណើរការ Upload ពេជ្រ...' : 'ជ្រើសរើសរូបពីទូរស័ព្ទ / កុំព្យូទ័រ (Upload Photo)'}</span>
+                <label className={`w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-purple-700 via-fuchsia-600 to-cyan-600 hover:brightness-110 active:scale-[0.99] text-white text-xs font-bold cursor-pointer flex items-center justify-center gap-2 shadow-md transition-all ${uploadingField === 'diamond' ? 'opacity-70 pointer-events-none' : ''}`}>
+                  <span>{uploadingField === 'diamond' ? '⏳' : '📷'}</span>
+                  <span>{uploadingField === 'diamond' ? 'កំពុងដំណើរការ Upload...' : (selectedGame === 'roblox' ? 'Upload រូប Robux Logo' : 'Upload រូបពេជ្រធម្មតា (Normal Diamonds)')}</span>
                   <input 
                     type="file" 
                     accept="image/*" 
                     className="hidden" 
                     onClick={(e) => { e.target.value = null; }}
-                    onChange={(e) => handleFileUpload(e, setDiamondUrl, 'diamond', true, setIsUploadingDiamond)}
+                    onChange={(e) => handleFileUpload(e, setDiamondUrl, 'diamond', true)}
                   />
                 </label>
               </div>
 
-              {/* 2. WEEKLY PASS & MEMBERSHIP LOGO (FOR MOBILE LEGENDS & FREE FIRE) */}
-              {selectedGame !== 'roblox' && (
-                <div className="p-4 rounded-xl bg-[#0e041d] border border-purple-500/30 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <label className="text-xs font-black text-purple-300 uppercase tracking-wider flex items-center gap-1.5">
-                        <span>🎟️</span>
-                        <span>
-                          {selectedGame === 'free-fire' 
-                            ? 'រូបតំណាង WEEKLY & MEMBERSHIP CARD' 
-                            : 'រូបតំណាង WEEKLY PASS & សមាជិកភាព'}
-                        </span>
-                      </label>
-                      <p className="text-[11px] text-gray-400 mt-0.5">
-                        {selectedGame === 'free-fire'
-                          ? 'បង្ហាញលើកញ្ចប់ Weekly Card, Monthly Card, Weekly Lite'
-                          : 'បង្ហាញលើកញ្ចប់ Weekly Diamond Pass, Elite, Twilight Pass'}
-                      </p>
+              {/* 2. MOBILE LEGENDS SPECIFIC PASS CARDS */}
+              {selectedGame === 'mobile-legends' && (
+                <>
+                  {/* Weekly Diamond Pass */}
+                  <div className="p-4 rounded-xl bg-[#0e041d] border border-cyan-500/30 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="text-xs font-black text-cyan-300 uppercase tracking-wider flex items-center gap-1.5">
+                          <span>🎟️</span>
+                          <span>WEEKLY DIAMOND PASS</span>
+                        </label>
+                        <p className="text-[11px] text-gray-400 mt-0.5">
+                          កញ្ចប់: Weekly, 2Weekly, 3Weekly, 4Weekly, 5Weekly, 10Weekly
+                        </p>
+                      </div>
+                      <div className="w-14 h-14 rounded-xl bg-black/60 border border-cyan-400/50 flex items-center justify-center p-1.5 shadow-[0_0_12px_rgba(0,240,255,0.3)]">
+                        <img 
+                          key={weeklyUrl}
+                          src={weeklyUrl || '/assets/diamonds/mlbb-weekly-pass.svg'} 
+                          alt="Weekly Pass Preview" 
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
                     </div>
-                    {/* Live Preview */}
-                    <div className="w-14 h-14 rounded-xl bg-black/60 border border-purple-400/50 flex items-center justify-center p-1.5 shadow-[0_0_12px_rgba(168,85,247,0.3)]">
-                      <img 
-                        key={weeklyUrl}
-                        src={weeklyUrl && !weeklyUrl.includes('pass-card.png') 
-                          ? weeklyUrl 
-                          : (selectedGame === 'free-fire' ? '/assets/diamonds/ff-weekly-card.svg' : '/assets/diamonds/mlbb-weekly-pass.svg')} 
-                        alt="Pass Preview" 
-                        className="w-full h-full object-contain"
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src = selectedGame === 'free-fire' ? '/assets/diamonds/ff-weekly-card.svg' : '/assets/diamonds/mlbb-weekly-pass.svg';
-                        }}
+                    <label className={`w-full py-2.5 px-4 rounded-xl bg-cyan-950/70 hover:bg-cyan-900/80 border border-cyan-400/50 text-cyan-200 text-xs font-bold cursor-pointer flex items-center justify-center gap-2 shadow-md transition-all ${uploadingField === 'weekly' ? 'opacity-70 pointer-events-none' : ''}`}>
+                      <span>{uploadingField === 'weekly' ? '⏳' : '📷'}</span>
+                      <span>{uploadingField === 'weekly' ? 'កំពុង Upload...' : 'Upload រូប Weekly Diamond Pass'}</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onClick={(e) => { e.target.value = null; }}
+                        onChange={(e) => handleFileUpload(e, setWeeklyUrl, 'weekly', true)}
                       />
-                    </div>
+                    </label>
                   </div>
 
-                  <label className={`w-full py-3 px-4 rounded-xl bg-purple-900/60 hover:bg-purple-800/80 border border-purple-400/40 text-purple-200 text-xs font-bold cursor-pointer flex items-center justify-center gap-2 shadow-md transition-all ${isUploadingWeekly ? 'opacity-70 pointer-events-none' : ''}`}>
-                    <span>{isUploadingWeekly ? '⏳' : '📷'}</span>
-                    <span>{isUploadingWeekly ? 'កំពុងដំណើរការ Upload...' : (selectedGame === 'free-fire' ? 'Upload រូប Membership Card ពីទូរស័ព្ទ / PC' : 'Upload រូប Weekly Pass ពីទូរស័ព្ទ / PC')}</span>
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      className="hidden" 
-                      onClick={(e) => { e.target.value = null; }}
-                      onChange={(e) => handleFileUpload(e, setWeeklyUrl, 'weekly', false, setIsUploadingWeekly)}
-                    />
-                  </label>
-                </div>
+                  {/* Weekly Elite Pass */}
+                  <div className="p-4 rounded-xl bg-[#0e041d] border border-blue-500/30 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="text-xs font-black text-blue-300 uppercase tracking-wider flex items-center gap-1.5">
+                          <span>🛡️</span>
+                          <span>WEEKLY ELITE PASS</span>
+                        </label>
+                        <p className="text-[11px] text-gray-400 mt-0.5">
+                          កញ្ចប់: Weekly Elite Pass (Code: WeeklyElite)
+                        </p>
+                      </div>
+                      <div className="w-14 h-14 rounded-xl bg-black/60 border border-blue-400/50 flex items-center justify-center p-1.5 shadow-[0_0_12px_rgba(59,130,246,0.3)]">
+                        <img 
+                          key={weeklyEliteUrl}
+                          src={weeklyEliteUrl || '/assets/diamonds/elite-pass.svg'} 
+                          alt="Weekly Elite Preview" 
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                    </div>
+                    <label className={`w-full py-2.5 px-4 rounded-xl bg-blue-950/70 hover:bg-blue-900/80 border border-blue-400/50 text-blue-200 text-xs font-bold cursor-pointer flex items-center justify-center gap-2 shadow-md transition-all ${uploadingField === 'weeklyElite' ? 'opacity-70 pointer-events-none' : ''}`}>
+                      <span>{uploadingField === 'weeklyElite' ? '⏳' : '📷'}</span>
+                      <span>{uploadingField === 'weeklyElite' ? 'កំពុង Upload...' : 'Upload រូប Weekly Elite Pass'}</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onClick={(e) => { e.target.value = null; }}
+                        onChange={(e) => handleFileUpload(e, setWeeklyEliteUrl, 'weeklyElite', true)}
+                      />
+                    </label>
+                  </div>
+
+                  {/* Monthly Epic Pass */}
+                  <div className="p-4 rounded-xl bg-[#0e041d] border border-amber-500/30 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="text-xs font-black text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                          <span>👑</span>
+                          <span>MONTHLY EPIC PASS</span>
+                        </label>
+                        <p className="text-[11px] text-gray-400 mt-0.5">
+                          កញ្ចប់: Monthly Epic Pass (Code: MonthlyEpic)
+                        </p>
+                      </div>
+                      <div className="w-14 h-14 rounded-xl bg-black/60 border border-amber-400/50 flex items-center justify-center p-1.5 shadow-[0_0_12px_rgba(245,158,11,0.3)]">
+                        <img 
+                          key={monthlyEpicUrl}
+                          src={monthlyEpicUrl || '/assets/diamonds/epic-pass.svg'} 
+                          alt="Monthly Epic Preview" 
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                    </div>
+                    <label className={`w-full py-2.5 px-4 rounded-xl bg-amber-950/70 hover:bg-amber-900/80 border border-amber-400/50 text-amber-200 text-xs font-bold cursor-pointer flex items-center justify-center gap-2 shadow-md transition-all ${uploadingField === 'monthlyEpic' ? 'opacity-70 pointer-events-none' : ''}`}>
+                      <span>{uploadingField === 'monthlyEpic' ? '⏳' : '📷'}</span>
+                      <span>{uploadingField === 'monthlyEpic' ? 'កំពុង Upload...' : 'Upload រូប Monthly Epic Pass'}</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onClick={(e) => { e.target.value = null; }}
+                        onChange={(e) => handleFileUpload(e, setMonthlyEpicUrl, 'monthlyEpic', true)}
+                      />
+                    </label>
+                  </div>
+
+                  {/* Twilight Pass */}
+                  <div className="p-4 rounded-xl bg-[#0e041d] border border-fuchsia-500/30 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="text-xs font-black text-fuchsia-300 uppercase tracking-wider flex items-center gap-1.5">
+                          <span>🌌</span>
+                          <span>TWILIGHT PASS</span>
+                        </label>
+                        <p className="text-[11px] text-gray-400 mt-0.5">
+                          កញ្ចប់: Twilight Pass (Code: Twilight)
+                        </p>
+                      </div>
+                      <div className="w-14 h-14 rounded-xl bg-black/60 border border-fuchsia-400/50 flex items-center justify-center p-1.5 shadow-[0_0_12px_rgba(217,70,239,0.3)]">
+                        <img 
+                          key={twilightUrl}
+                          src={twilightUrl || '/assets/diamonds/twilight-pass.svg'} 
+                          alt="Twilight Pass Preview" 
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                    </div>
+                    <label className={`w-full py-2.5 px-4 rounded-xl bg-fuchsia-950/70 hover:bg-fuchsia-900/80 border border-fuchsia-400/50 text-fuchsia-200 text-xs font-bold cursor-pointer flex items-center justify-center gap-2 shadow-md transition-all ${uploadingField === 'twilight' ? 'opacity-70 pointer-events-none' : ''}`}>
+                      <span>{uploadingField === 'twilight' ? '⏳' : '📷'}</span>
+                      <span>{uploadingField === 'twilight' ? 'កំពុង Upload...' : 'Upload រូប Twilight Pass'}</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onClick={(e) => { e.target.value = null; }}
+                        onChange={(e) => handleFileUpload(e, setTwilightUrl, 'twilight', true)}
+                      />
+                    </label>
+                  </div>
+                </>
               )}
 
-              {/* 3. GAME COVER BANNER UPLOAD */}
+              {/* 3. FREE FIRE SPECIFIC PASS CARDS */}
+              {selectedGame === 'free-fire' && (
+                <>
+                  {/* Weekly Membership (W.Card) */}
+                  <div className="p-4 rounded-xl bg-[#0e041d] border border-cyan-500/30 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="text-xs font-black text-cyan-300 uppercase tracking-wider flex items-center gap-1.5">
+                          <span>🎟️</span>
+                          <span>WEEKLY MEMBERSHIP (W.CARD)</span>
+                        </label>
+                        <p className="text-[11px] text-gray-400 mt-0.5">
+                          កញ្ចប់: 1x ដល់ 20x Weekly Membership (weekly, 2weekly...)
+                        </p>
+                      </div>
+                      <div className="w-14 h-14 rounded-xl bg-black/60 border border-cyan-400/50 flex items-center justify-center p-1.5 shadow-[0_0_12px_rgba(0,240,255,0.3)]">
+                        <img 
+                          key={weeklyUrl}
+                          src={weeklyUrl || '/assets/diamonds/ff-weekly-card.svg'} 
+                          alt="Weekly Card Preview" 
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                    </div>
+                    <label className={`w-full py-2.5 px-4 rounded-xl bg-cyan-950/70 hover:bg-cyan-900/80 border border-cyan-400/50 text-cyan-200 text-xs font-bold cursor-pointer flex items-center justify-center gap-2 shadow-md transition-all ${uploadingField === 'weekly' ? 'opacity-70 pointer-events-none' : ''}`}>
+                      <span>{uploadingField === 'weekly' ? '⏳' : '📷'}</span>
+                      <span>{uploadingField === 'weekly' ? 'កំពុង Upload...' : 'Upload រូប Weekly Membership (W.Card)'}</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onClick={(e) => { e.target.value = null; }}
+                        onChange={(e) => handleFileUpload(e, setWeeklyUrl, 'weekly', true)}
+                      />
+                    </label>
+                  </div>
+
+                  {/* Weekly Lite (W.Lite) */}
+                  <div className="p-4 rounded-xl bg-[#0e041d] border border-sky-500/30 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="text-xs font-black text-sky-300 uppercase tracking-wider flex items-center gap-1.5">
+                          <span>⚡</span>
+                          <span>WEEKLY LITE (W.LITE)</span>
+                        </label>
+                        <p className="text-[11px] text-gray-400 mt-0.5">
+                          កញ្ចប់: 1x ដល់ 20x Weekly Lite (weeklylite, 2weeklylite...)
+                        </p>
+                      </div>
+                      <div className="w-14 h-14 rounded-xl bg-black/60 border border-sky-400/50 flex items-center justify-center p-1.5 shadow-[0_0_12px_rgba(56,189,248,0.3)]">
+                        <img 
+                          key={ffWeeklyLiteUrl}
+                          src={ffWeeklyLiteUrl || '/assets/diamonds/ff-weekly-lite.svg'} 
+                          alt="Weekly Lite Preview" 
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                    </div>
+                    <label className={`w-full py-2.5 px-4 rounded-xl bg-sky-950/70 hover:bg-sky-900/80 border border-sky-400/50 text-sky-200 text-xs font-bold cursor-pointer flex items-center justify-center gap-2 shadow-md transition-all ${uploadingField === 'weeklyLite' ? 'opacity-70 pointer-events-none' : ''}`}>
+                      <span>{uploadingField === 'weeklyLite' ? '⏳' : '📷'}</span>
+                      <span>{uploadingField === 'weeklyLite' ? 'កំពុង Upload...' : 'Upload រូប Weekly Lite (W.Lite)'}</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onClick={(e) => { e.target.value = null; }}
+                        onChange={(e) => handleFileUpload(e, setFfWeeklyLiteUrl, 'weeklyLite', true)}
+                      />
+                    </label>
+                  </div>
+
+                  {/* Monthly Membership (M.Card) */}
+                  <div className="p-4 rounded-xl bg-[#0e041d] border border-amber-500/30 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="text-xs font-black text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                          <span>👑</span>
+                          <span>MONTHLY MEMBERSHIP (M.CARD)</span>
+                        </label>
+                        <p className="text-[11px] text-gray-400 mt-0.5">
+                          កញ្ចប់: 1x ដល់ 20x Monthly Membership (monthly, 2monthly...)
+                        </p>
+                      </div>
+                      <div className="w-14 h-14 rounded-xl bg-black/60 border border-amber-400/50 flex items-center justify-center p-1.5 shadow-[0_0_12px_rgba(245,158,11,0.3)]">
+                        <img 
+                          key={ffMonthlyUrl}
+                          src={ffMonthlyUrl || '/assets/diamonds/ff-monthly-card.svg'} 
+                          alt="Monthly Card Preview" 
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                    </div>
+                    <label className={`w-full py-2.5 px-4 rounded-xl bg-amber-950/70 hover:bg-amber-900/80 border border-amber-400/50 text-amber-200 text-xs font-bold cursor-pointer flex items-center justify-center gap-2 shadow-md transition-all ${uploadingField === 'monthlyCard' ? 'opacity-70 pointer-events-none' : ''}`}>
+                      <span>{uploadingField === 'monthlyCard' ? '⏳' : '📷'}</span>
+                      <span>{uploadingField === 'monthlyCard' ? 'កំពុង Upload...' : 'Upload រូប Monthly Membership (M.Card)'}</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onClick={(e) => { e.target.value = null; }}
+                        onChange={(e) => handleFileUpload(e, setFfMonthlyUrl, 'monthlyCard', true)}
+                      />
+                    </label>
+                  </div>
+
+                  {/* Level Up Pass */}
+                  <div className="p-4 rounded-xl bg-[#0e041d] border border-purple-500/30 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="text-xs font-black text-purple-300 uppercase tracking-wider flex items-center gap-1.5">
+                          <span>🏆</span>
+                          <span>LEVEL UP PASS</span>
+                        </label>
+                        <p className="text-[11px] text-gray-400 mt-0.5">
+                          កញ្ចប់: Level Up Pass All Levels, Level 6 ដល់ Level 30
+                        </p>
+                      </div>
+                      <div className="w-14 h-14 rounded-xl bg-black/60 border border-purple-400/50 flex items-center justify-center p-1.5 shadow-[0_0_12px_rgba(168,85,247,0.3)]">
+                        <img 
+                          key={ffLevelUpUrl}
+                          src={ffLevelUpUrl || '/assets/diamonds/ff-levelup.svg'} 
+                          alt="Level Up Pass Preview" 
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                    </div>
+                    <label className={`w-full py-2.5 px-4 rounded-xl bg-purple-950/70 hover:bg-purple-900/80 border border-purple-400/50 text-purple-200 text-xs font-bold cursor-pointer flex items-center justify-center gap-2 shadow-md transition-all ${uploadingField === 'levelUp' ? 'opacity-70 pointer-events-none' : ''}`}>
+                      <span>{uploadingField === 'levelUp' ? '⏳' : '📷'}</span>
+                      <span>{uploadingField === 'levelUp' ? 'កំពុង Upload...' : 'Upload រូប Level Up Pass'}</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onClick={(e) => { e.target.value = null; }}
+                        onChange={(e) => handleFileUpload(e, setFfLevelUpUrl, 'levelUp', true)}
+                      />
+                    </label>
+                  </div>
+
+                  {/* Combo (M+W+L) */}
+                  <div className="p-4 rounded-xl bg-[#0e041d] border border-rose-500/30 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="text-xs font-black text-rose-300 uppercase tracking-wider flex items-center gap-1.5">
+                          <span>💥</span>
+                          <span>COMBO PASS (M+W+L)</span>
+                        </label>
+                        <p className="text-[11px] text-gray-400 mt-0.5">
+                          កញ្ចប់: 1x ដល់ 5x Combo Bundle (Monthly + Weekly + Level Up)
+                        </p>
+                      </div>
+                      <div className="w-14 h-14 rounded-xl bg-black/60 border border-rose-400/50 flex items-center justify-center p-1.5 shadow-[0_0_12px_rgba(244,63,94,0.3)]">
+                        <img 
+                          key={ffComboUrl}
+                          src={ffComboUrl || '/assets/diamonds/ff-combo.svg'} 
+                          alt="Combo Preview" 
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                    </div>
+                    <label className={`w-full py-2.5 px-4 rounded-xl bg-rose-950/70 hover:bg-rose-900/80 border border-rose-400/50 text-rose-200 text-xs font-bold cursor-pointer flex items-center justify-center gap-2 shadow-md transition-all ${uploadingField === 'combo' ? 'opacity-70 pointer-events-none' : ''}`}>
+                      <span>{uploadingField === 'combo' ? '⏳' : '📷'}</span>
+                      <span>{uploadingField === 'combo' ? 'កំពុង Upload...' : 'Upload រូប Combo Pass (M+W+L)'}</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onClick={(e) => { e.target.value = null; }}
+                        onChange={(e) => handleFileUpload(e, setFfComboUrl, 'combo', true)}
+                      />
+                    </label>
+                  </div>
+                </>
+              )}
+
+              {/* 4. GAME COVER BANNER UPLOAD */}
               <div className="p-4 rounded-xl bg-[#0e041d] border border-purple-500/30 space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
@@ -801,19 +1112,7 @@ export default function AdminPage({ onBack }) {
                     ? customPrices[pkg.code || pkg.id] 
                     : getCustomPrice(selectedGame, pkg.code || pkg.id, pkg.price);
 
-                  const isPkgWeekly = pkg.section === 'weekly' ||
-                    pkg.section === 'subscriptions' ||
-                    pkg.category === 'weekly' ||
-                    pkg.category === 'subscriptions' ||
-                    pkg.name.toLowerCase().includes('pass') ||
-                    pkg.name.toLowerCase().includes('weekly') ||
-                    String(pkg.code).toLowerCase().includes('weekly');
-
-                  const displayPackageIcon = isPkgWeekly
-                    ? (weeklyUrl && !weeklyUrl.includes('pass-card.png') 
-                        ? weeklyUrl 
-                        : (pkg.img || (selectedGame === 'free-fire' ? '/assets/diamonds/ff-weekly-card.svg' : '/assets/diamonds/mlbb-weekly-pass.svg')))
-                    : (diamondUrl || pkg.img || (selectedGame === 'roblox' ? '/assets/diamonds/robux-gold.svg' : (selectedGame === 'free-fire' ? '/assets/diamonds/ff-diamond.png' : '/assets/diamonds/mlbb-diamond.png')));
+                  const displayPackageIcon = getPackageCustomIcon(selectedGame, pkg.code || pkg.id, pkg.img);
 
                   return (
                     <div 
@@ -829,7 +1128,7 @@ export default function AdminPage({ onBack }) {
                             className="w-full h-full object-contain"
                             onError={(e) => {
                               e.target.onerror = null;
-                              e.target.src = isPkgWeekly ? '/assets/diamonds/mlbb-weekly-pass.svg' : '/assets/diamonds/mlbb-diamond.png';
+                              e.target.src = pkg.img || (selectedGame === 'free-fire' ? '/assets/diamonds/ff-diamond.png' : selectedGame === 'roblox' ? '/assets/diamonds/robux-gold.svg' : '/assets/diamonds/mlbb-diamond.png');
                             }}
                           />
                         </div>

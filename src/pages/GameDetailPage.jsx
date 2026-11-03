@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createSecureOrder, generateBakongQR } from '../services/paylink';
 import { createSoraOrder, getSoraPackages, getSoraRobux, getSoraProfile } from '../services/sora';
 import { verifyPlayer } from '../services/playerCheck';
-import { getGameAsset, getCustomPrice } from '../services/adminSettings';
+import { getGameAsset, getCustomPrice, getPackageCustomIcon } from '../services/adminSettings';
 import { formatFullPackageName } from '../data/games';
 import BakongQRModal from '../components/BakongQRModal';
 
@@ -801,24 +801,8 @@ export default function GameDetailPage({ game, currency, onBack }) {
                               pkgCode.includes('weekly') ||
                               pkgId.includes('weekly');
 
-                            // Determine vibrant custom or default icon safely
-                            let packageIcon = pkg.img;
-                            const customWeekly = String(getGameAsset(game?.id, 'weekly') || '');
-                            const hasCustomWeekly = customWeekly && 
-                              !customWeekly.includes('pass-card.png') && 
-                              !customWeekly.includes('mlbb-weekly-pass.svg');
-
-                            const customDiamond = String(getGameAsset(game?.id, 'diamond') || '');
-                            const hasCustomDiamond = customDiamond && 
-                              !customDiamond.includes('mlbb-diamond.png') && 
-                              !customDiamond.includes('ff-diamond.png') && 
-                              !customDiamond.includes('robux-gold.svg');
-
-                            if (isWeeklyPass) {
-                              packageIcon = hasCustomWeekly ? customWeekly : (pkg.img || (game?.id === 'free-fire' ? '/assets/diamonds/ff-weekly-card.svg' : '/assets/diamonds/mlbb-weekly-pass.svg'));
-                            } else {
-                              packageIcon = hasCustomDiamond ? customDiamond : (pkg.img || (game?.id === 'free-fire' ? '/assets/diamonds/ff-diamond.png' : game?.id === 'roblox' ? '/assets/diamonds/robux-gold.svg' : '/assets/diamonds/mlbb-diamond.png'));
-                            }
+                            // Connect directly with admin custom icon for this exact event pass or diamond
+                            const packageIcon = getPackageCustomIcon(game?.id, pkg.code || pkg.id, pkg.img);
 
                             return (
                               <div
@@ -837,9 +821,7 @@ export default function GameDetailPage({ game, currency, onBack }) {
                                     className="w-full h-full object-contain"
                                     onError={(e) => {
                                       e.target.onerror = null;
-                                      e.target.src = isWeeklyPass 
-                                        ? (game?.id === 'free-fire' ? '/assets/diamonds/ff-weekly-card.svg' : '/assets/diamonds/mlbb-weekly-pass.svg') 
-                                        : (game?.id === 'roblox' ? '/assets/diamonds/robux-gold.svg' : '/assets/diamonds/mlbb-diamond.png');
+                                      e.target.src = pkg.img || (game?.id === 'free-fire' ? '/assets/diamonds/ff-diamond.png' : game?.id === 'roblox' ? '/assets/diamonds/robux-gold.svg' : '/assets/diamonds/mlbb-diamond.png');
                                     }}
                                   />
                                 </div>
