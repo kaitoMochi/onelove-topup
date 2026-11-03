@@ -1,3 +1,73 @@
+export function formatFullPackageName(gameId, code, soraName = '') {
+  const codeStr = String(code || '').trim();
+  const codeLower = codeStr.toLowerCase();
+
+  if (gameId === 'free-fire' || gameId === 'ff') {
+    // 1. Regular Diamonds
+    if (/^\d+$/.test(codeStr)) {
+      return `${Number(codeStr).toLocaleString()} Diamonds`;
+    }
+    // 2. Weekly Lite
+    if (codeLower === 'weeklylite') return 'Weekly Lite Membership';
+    const liteMatch = codeLower.match(/^(\d+)weeklylite$/);
+    if (liteMatch) return `${liteMatch[1]}x Weekly Lite Membership`;
+
+    // 3. Weekly Membership (W.Card)
+    if (codeLower === 'weekly') return 'Weekly Membership';
+    const weeklyMatch = codeLower.match(/^(\d+)weekly$/);
+    if (weeklyMatch) return `${weeklyMatch[1]}x Weekly Membership`;
+
+    // 4. Monthly Membership (M.Card)
+    if (codeLower === 'monthly') return 'Monthly Membership';
+    const monthlyMatch = codeLower.match(/^(\d+)monthly$/);
+    if (monthlyMatch) return `${monthlyMatch[1]}x Monthly Membership`;
+
+    // 5. Level Up Pass
+    if (codeLower === 'lup') return 'Level Up Pass (All Levels)';
+    const lvlMatch = codeLower.match(/^l(\d+)$/);
+    if (lvlMatch) return `Level Up Pass (Level ${lvlMatch[1]})`;
+
+    // 6. MWL Combos
+    if (codeLower === 'mwl') return 'Combo (Monthly + Weekly + Level Up)';
+    const mwlMatch = codeLower.match(/^(\d+)mwl$/);
+    if (mwlMatch) return `${mwlMatch[1]}x Combo (Monthly + Weekly + Level Up)`;
+
+    return soraName || codeStr;
+  }
+
+  if (gameId === 'mobile-legends' || gameId === 'ml') {
+    if (/^\d+$/.test(codeStr)) {
+      return `${Number(codeStr).toLocaleString()} Diamonds`;
+    }
+    if (codeLower === 'weekly') return 'Weekly Diamond Pass';
+    const wMatch = codeStr.match(/^(\d+)Weekly$/i);
+    if (wMatch) return `${wMatch[1]}x Weekly Diamond Pass`;
+    if (codeLower === 'weeklyelite') return 'Weekly Elite Pass';
+    if (codeLower === 'monthlyepic') return 'Monthly Epic Pass';
+    if (codeLower === 'twilight') return 'Twilight Pass';
+    return soraName || codeStr;
+  }
+
+  if (gameId === 'roblox') {
+    const robuxMap = {
+      '100_robux': '100 Robux Code',
+      '275_robux': '275 Robux Code',
+      '360_robux': '360 Robux Code',
+      '555_robux': '555 Robux Code',
+      '1000_robux': '1,000 Robux Code',
+      '2500_robux': '2,500 Robux Code',
+      '5250_robux': '5,250 Robux Code',
+      '11000_robux': '11,000 Robux Code',
+      '50000_idr': '279 Robux (Digital Code)',
+      '65000_idr': '362 Robux (Digital Code)',
+      '100000_idr': '557 Robux (Digital Code)'
+    };
+    return robuxMap[codeStr] || soraName || `${codeStr} Robux`;
+  }
+
+  return soraName || codeStr;
+}
+
 export const GAMES = [
   {
     id: 'mobile-legends',
@@ -49,12 +119,12 @@ export const GAMES = [
       { id: '9288', code: '9288', name: '9288 Diamonds', section: 'diamonds', sectionTitle: 'Diamonds', category: 'diamonds', price: 117.32, bonus: '+920 💎', points: '+117 ពិន្ទុ', img: '/assets/diamonds/mlbb-diamond.png' },
 
       // 2. Weekly Pass (Direct Sora Live API)
-      { id: 'Weekly', code: 'Weekly', name: 'Weekly Membership', section: 'weekly', sectionTitle: 'Weekly Pass', category: 'weekly', price: 1.47, bonus: 'សរុប 220💎', points: '+2 ពិន្ទុ', popular: true, img: '/assets/diamonds/mlbb-weekly-pass.svg' },
-      { id: '2Weekly', code: '2Weekly', name: '2x W.Pass', section: 'weekly', sectionTitle: 'Weekly Pass', category: 'weekly', price: 2.94, bonus: 'សរុប 440💎', points: '+3 ពិន្ទុ', img: '/assets/diamonds/mlbb-weekly-pass.svg' },
-      { id: '3Weekly', code: '3Weekly', name: '3x W.Pass', section: 'weekly', sectionTitle: 'Weekly Pass', category: 'weekly', price: 4.41, bonus: 'Full Ticket', topTag: 'Full Ticket', points: '+5 ពិន្ទុ', popular: true, img: '/assets/diamonds/mlbb-weekly-pass.svg' },
-      { id: '4Weekly', code: '4Weekly', name: '4x W.Pass', section: 'weekly', sectionTitle: 'Weekly Pass', category: 'weekly', price: 5.88, bonus: 'សរុប 880💎', points: '+6 ពិន្ទុ', img: '/assets/diamonds/mlbb-weekly-pass.svg' },
-      { id: '5Weekly', code: '5Weekly', name: '5x W.Pass', section: 'weekly', sectionTitle: 'Weekly Pass', category: 'weekly', price: 7.35, bonus: 'សរុប 1,100💎', points: '+7 ពិន្ទុ', img: '/assets/diamonds/mlbb-weekly-pass.svg' },
-      { id: '10Weekly', code: '10Weekly', name: '10x W.Pass', section: 'weekly', sectionTitle: 'Weekly Pass', category: 'weekly', price: 14.70, bonus: 'សរុប 2,200💎', points: '+15 ពិន្ទុ', img: '/assets/diamonds/mlbb-weekly-pass.svg' },
+      { id: 'Weekly', code: 'Weekly', name: 'Weekly Diamond Pass', section: 'weekly', sectionTitle: 'Weekly Pass', category: 'weekly', price: 1.47, bonus: 'សរុប 220💎', points: '+2 ពិន្ទុ', popular: true, img: '/assets/diamonds/mlbb-weekly-pass.svg' },
+      { id: '2Weekly', code: '2Weekly', name: '2x Weekly Diamond Pass', section: 'weekly', sectionTitle: 'Weekly Pass', category: 'weekly', price: 2.94, bonus: 'សរុប 440💎', points: '+3 ពិន្ទុ', img: '/assets/diamonds/mlbb-weekly-pass.svg' },
+      { id: '3Weekly', code: '3Weekly', name: '3x Weekly Diamond Pass', section: 'weekly', sectionTitle: 'Weekly Pass', category: 'weekly', price: 4.41, bonus: 'Full Ticket', topTag: 'Full Ticket', points: '+5 ពិន្ទុ', popular: true, img: '/assets/diamonds/mlbb-weekly-pass.svg' },
+      { id: '4Weekly', code: '4Weekly', name: '4x Weekly Diamond Pass', section: 'weekly', sectionTitle: 'Weekly Pass', category: 'weekly', price: 5.88, bonus: 'សរុប 880💎', points: '+6 ពិន្ទុ', img: '/assets/diamonds/mlbb-weekly-pass.svg' },
+      { id: '5Weekly', code: '5Weekly', name: '5x Weekly Diamond Pass', section: 'weekly', sectionTitle: 'Weekly Pass', category: 'weekly', price: 7.35, bonus: 'សរុប 1,100💎', points: '+7 ពិន្ទុ', img: '/assets/diamonds/mlbb-weekly-pass.svg' },
+      { id: '10Weekly', code: '10Weekly', name: '10x Weekly Diamond Pass', section: 'weekly', sectionTitle: 'Weekly Pass', category: 'weekly', price: 14.70, bonus: 'សរុប 2,200💎', points: '+15 ពិន្ទុ', img: '/assets/diamonds/mlbb-weekly-pass.svg' },
 
       // 3. Subscriptions & Special Passes (Direct Sora Live API)
       { id: 'WeeklyElite', code: 'WeeklyElite', name: 'Weekly Elite Pass', section: 'subscriptions', sectionTitle: 'Subscriptions & Special Passes', category: 'subscriptions', price: 0.77, bonus: 'Elite Rewards', points: '+1 ពិន្ទុ', img: '/assets/diamonds/elite-pass.svg' },

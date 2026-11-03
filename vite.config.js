@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import fs from 'fs'
 import path from 'path'
+import { formatFullPackageName } from './src/data/games.js'
 
 const PAYLINK_CONFIG = {
   baseUrl: 'https://paylinkapi-bot.onrender.com',
@@ -449,7 +450,7 @@ function apiProxyPlugin() {
                 const found = soraPkgData.packages?.find(p => String(p.code) === String(packageCode));
                 if (found) {
                   officialPrice = Number(found.price);
-                  packageName = found.name;
+                  packageName = formatFullPackageName('mobile-legends', found.code, found.name);
                 }
               } else if (game === 'free-fire' || game === 'ff') {
                 const soraPkgRes = await fetch(`${SORA_CONFIG.baseUrl}/packages?game=ff`, {
@@ -459,7 +460,7 @@ function apiProxyPlugin() {
                 const found = soraPkgData.packages?.find(p => String(p.code) === String(packageCode));
                 if (found) {
                   officialPrice = Number(found.price);
-                  packageName = found.name;
+                  packageName = formatFullPackageName('free-fire', found.code, found.name);
                 }
               } else if (game === 'roblox' || game === 'robux') {
                 try {
@@ -470,9 +471,9 @@ function apiProxyPlugin() {
                   const found = soraRobuxData.items?.find(p => String(p.cardId) === String(packageCode));
                   if (found) {
                     officialPrice = Number(found.priceUsd);
-                    packageName = found.name;
+                    packageName = formatFullPackageName('roblox', found.cardId, found.name);
                   }
-                } catch (e) {}
+                } catch (e) { }
 
                 if (!officialPrice) {
                   const defaultRobuxPrices = {
@@ -489,7 +490,7 @@ function apiProxyPlugin() {
                     '100000_idr': 5.50
                   };
                   officialPrice = defaultRobuxPrices[packageCode] || 1.78;
-                  packageName = `${packageCode} Robux`;
+                  packageName = formatFullPackageName('roblox', packageCode, `${packageCode} Robux`);
                 }
               }
 

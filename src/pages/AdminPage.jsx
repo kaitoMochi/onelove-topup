@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getSoraProfile, getSoraPackages, getSoraOrders } from '../services/sora';
+import { getSoraProfile, getSoraPackages, getSoraOrders, getSoraRobux } from '../services/sora';
 import { getAdminSettings, saveAdminSettings, removeImageBackground, uploadAdminAsset, getCustomPrice, syncAdminSettingsWithServer } from '../services/adminSettings';
-import { GAMES } from '../data/games';
+import { GAMES, formatFullPackageName } from '../data/games';
 
 export default function AdminPage({ onBack }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -322,7 +322,7 @@ export default function AdminPage({ onBack }) {
         return {
           id: sp.code || sp.id,
           code: sp.code || sp.id,
-          name: staticMatch?.name || sp.name,
+          name: formatFullPackageName(selectedGame, sp.code || sp.id, staticMatch?.name || sp.name),
           section: staticMatch?.section || (String(sp.code).toLowerCase().includes('weekly') ? 'weekly' : 'diamonds'),
           sectionTitle: staticMatch?.sectionTitle || (String(sp.code).toLowerCase().includes('weekly') ? 'Weekly Pass' : 'Diamonds'),
           price: sp.price !== undefined ? sp.price : (staticMatch?.price || 0),

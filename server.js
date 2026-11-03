@@ -2,6 +2,7 @@ import express from 'express';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { formatFullPackageName } from './src/data/games.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -345,7 +346,7 @@ app.post('/api/orders/create', async (req, res) => {
       const found = soraPkgData.packages?.find(p => String(p.code) === String(packageCode));
       if (found) {
         officialPrice = Number(found.price);
-        packageName = found.name;
+        packageName = formatFullPackageName('mobile-legends', found.code, found.name);
       }
     } else if (game === 'free-fire' || game === 'ff') {
       const soraPkgRes = await fetch(`${SORA_CONFIG.baseUrl}/packages?game=ff`, {
@@ -355,7 +356,7 @@ app.post('/api/orders/create', async (req, res) => {
       const found = soraPkgData.packages?.find(p => String(p.code) === String(packageCode));
       if (found) {
         officialPrice = Number(found.price);
-        packageName = found.name;
+        packageName = formatFullPackageName('free-fire', found.code, found.name);
       }
     } else if (game === 'roblox' || game === 'robux') {
       try {
@@ -366,7 +367,7 @@ app.post('/api/orders/create', async (req, res) => {
         const found = soraRobuxData.items?.find(p => String(p.cardId) === String(packageCode));
         if (found) {
           officialPrice = Number(found.priceUsd);
-          packageName = found.name;
+          packageName = formatFullPackageName('roblox', found.cardId, found.name);
         }
       } catch (e) {}
 
@@ -385,7 +386,7 @@ app.post('/api/orders/create', async (req, res) => {
           '100000_idr': 5.50
         };
         officialPrice = defaultRobuxPrices[packageCode] || 1.78;
-        packageName = `${packageCode} Robux`;
+        packageName = formatFullPackageName('roblox', packageCode, `${packageCode} Robux`);
       }
     }
 

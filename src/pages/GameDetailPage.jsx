@@ -3,6 +3,7 @@ import { createSecureOrder, generateBakongQR } from '../services/paylink';
 import { createSoraOrder, getSoraPackages, getSoraRobux, getSoraProfile } from '../services/sora';
 import { verifyPlayer } from '../services/playerCheck';
 import { getGameAsset, getCustomPrice } from '../services/adminSettings';
+import { formatFullPackageName } from '../data/games';
 import BakongQRModal from '../components/BakongQRModal';
 
 export default function GameDetailPage({ game, currency, onBack }) {
@@ -72,7 +73,7 @@ export default function GameDetailPage({ game, currency, onBack }) {
               return {
                 id: code,
                 code: code,
-                name: item.name,
+                name: formatFullPackageName('roblox', code, item.name),
                 section: 'diamonds',
                 sectionTitle: 'Digital Robux Codes',
                 category: 'diamonds',
@@ -122,7 +123,7 @@ export default function GameDetailPage({ game, currency, onBack }) {
                 mapped.push({
                   id: code,
                   code: code,
-                  name: code === 'Weekly' ? 'Weekly Membership' : (found.name || `${code} Pass`),
+                  name: formatFullPackageName('mobile-legends', code, found.name),
                   section: 'weekly',
                   sectionTitle: 'Weekly Pass',
                   category: 'weekly',
@@ -148,7 +149,7 @@ export default function GameDetailPage({ game, currency, onBack }) {
                 mapped.push({
                   id: sub.code,
                   code: sub.code,
-                  name: sub.name,
+                  name: formatFullPackageName('mobile-legends', sub.code, sub.name),
                   section: 'subscriptions',
                   sectionTitle: 'Subscriptions & Special Passes',
                   category: 'subscriptions',
@@ -214,7 +215,7 @@ export default function GameDetailPage({ game, currency, onBack }) {
               return {
                 id: code,
                 code: code,
-                name: pkg.name,
+                name: formatFullPackageName('free-fire', code, pkg.name),
                 section,
                 sectionTitle,
                 category,
