@@ -887,21 +887,51 @@ app.post('/api/check-player', async (req, res) => {
     // 2. Free Fire Mobile (FF) -> Player UID
     if (game === 'free-fire' || game === 'ff') {
       let ffNickname = null;
+      let ffRegion = null;
+      let ffLevel = null;
 
+      // 1. Primary: multi-region global API (supports SG, KH, IND, ID, ME, US, etc.)
       try {
-        const ffRes = await fetch(`https://api.isan.eu.org/nickname/ff?id=${encodeURIComponent(uid)}`);
-        const ffData = await ffRes.json().catch(() => null);
-        if (ffData && ffData.success && ffData.name && String(ffData.name).trim()) {
-          ffNickname = String(ffData.name).trim();
+        const tsunRes = await fetch(`https://infoxvisits.tsunxkittens.app/info/${encodeURIComponent(uid)}`, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'application/json'
+          },
+          signal: AbortSignal.timeout(8000)
+        });
+        if (tsunRes.ok) {
+          const tsunData = await tsunRes.json().catch(() => null);
+          if (tsunData && tsunData.AccountInfo && tsunData.AccountInfo.AccountName) {
+            ffNickname = String(tsunData.AccountInfo.AccountName).trim();
+            ffRegion = tsunData.AccountInfo.AccountRegion || 'SG';
+            ffLevel = tsunData.AccountInfo.AccountLevel || null;
+          }
         }
       } catch (err) {
-        console.warn('Free Fire verification error:', err.message);
+        console.warn('Free Fire primary verification error:', err.message);
       }
 
+      // 2. Secondary fallback: isan nickname
+      if (!ffNickname) {
+        try {
+          const ffRes = await fetch(`https://api.isan.eu.org/nickname/ff?id=${encodeURIComponent(uid)}`, {
+            signal: AbortSignal.timeout(6000)
+          });
+          const ffData = await ffRes.json().catch(() => null);
+          if (ffData && ffData.success && ffData.name && String(ffData.name).trim()) {
+            ffNickname = String(ffData.name).trim();
+          }
+        } catch (err) {
+          console.warn('Free Fire isan error:', err.message);
+        }
+      }
+
+      // 3. Third fallback: gopay
       if (!ffNickname) {
         try {
           const gopayRes = await fetch(`https://gopay.co.id/games/v1/order/prepare/FREEFIRE?userId=${encodeURIComponent(uid)}`, {
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+            signal: AbortSignal.timeout(6000)
           });
           if (gopayRes.ok) {
             const gData = await gopayRes.json().catch(() => null);
@@ -912,29 +942,34 @@ app.post('/api/check-player', async (req, res) => {
         } catch (_) {}
       }
 
-      const isDigitsOnly = /^\d{8,11}$/.test(uid);
-      if (ffNickname || isDigitsOnly) {
-        const finalName = ffNickname || `Player_${uid.slice(-4)}`;
+      if (ffNickname) {
+        const countryLabel = ffRegion === 'SG' ? 'Cambodia / Singapore' : (ffRegion ? `Region ${ffRegion}` : 'Global');
         return res.json({
           success: true,
-          username: finalName,
-          displayName: finalName,
+          username: ffNickname,
+          displayName: ffNickname,
           id: uid,
           userId: uid,
           zone: '',
+          region: ffRegion || 'SG',
+          country: countryLabel,
+          level: ffLevel,
           data: {
-            username: finalName,
-            displayName: finalName,
+            username: ffNickname,
+            displayName: ffNickname,
             id: uid,
             userId: uid,
-            zone: ''
+            zone: '',
+            region: ffRegion || 'SG',
+            country: countryLabel,
+            level: ffLevel
           }
         });
       }
 
-      return res.json({
+      return res.status(404).json({
         success: false,
-        error: 'រកមិនឃើញគណនី Free Fire នេះទេ! សូមពិនិត្យមើល Player UID (8-11 ខ្ទង់) ឡើងវិញ'
+        error: 'រកមិនឃើញគណនី Free Fire នេះទេ! សូមពិនិត្យមើល Player UID ឡើងវិញ'
       });
     }
 

@@ -1098,22 +1098,51 @@ function apiProxyPlugin() {
 
               // 2. FREE FIRE (Real Player ID lookup)
               if (game === 'free-fire' || game === 'ff') {
+                const uid = userId.trim();
                 let nickname = null;
+                let region = null;
+                let level = null;
 
+                // 1. Primary: multi-region global API (supports SG, KH, IND, ID, ME, US, etc.)
                 try {
-                  const r1 = await fetch(`https://api.isan.eu.org/nickname/ff?id=${encodeURIComponent(userId)}`);
-                  if (r1.ok) {
-                    const d1 = await r1.json();
-                    if (d1 && d1.success && d1.name && String(d1.name).trim()) {
-                      nickname = String(d1.name).trim();
+                  const tsunRes = await fetch(`https://infoxvisits.tsunxkittens.app/info/${encodeURIComponent(uid)}`, {
+                    headers: {
+                      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                      'Accept': 'application/json'
+                    },
+                    signal: AbortSignal.timeout(8000)
+                  });
+                  if (tsunRes.ok) {
+                    const tsunData = await tsunRes.json().catch(() => null);
+                    if (tsunData && tsunData.AccountInfo && tsunData.AccountInfo.AccountName) {
+                      nickname = String(tsunData.AccountInfo.AccountName).trim();
+                      region = tsunData.AccountInfo.AccountRegion || 'SG';
+                      level = tsunData.AccountInfo.AccountLevel || null;
                     }
                   }
                 } catch (e) { }
 
+                // 2. Secondary fallback: isan nickname
                 if (!nickname) {
                   try {
-                    const r2 = await fetch(`https://gopay.co.id/games/v1/order/prepare/FREEFIRE?userId=${encodeURIComponent(userId)}`, {
-                      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+                    const r1 = await fetch(`https://api.isan.eu.org/nickname/ff?id=${encodeURIComponent(uid)}`, {
+                      signal: AbortSignal.timeout(6000)
+                    });
+                    if (r1.ok) {
+                      const d1 = await r1.json();
+                      if (d1 && d1.success && d1.name && String(d1.name).trim()) {
+                        nickname = String(d1.name).trim();
+                      }
+                    }
+                  } catch (e) { }
+                }
+
+                // 3. Third fallback: gopay
+                if (!nickname) {
+                  try {
+                    const r2 = await fetch(`https://gopay.co.id/games/v1/order/prepare/FREEFIRE?userId=${encodeURIComponent(uid)}`, {
+                      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+                      signal: AbortSignal.timeout(6000)
                     });
                     if (r2.ok) {
                       const d2 = await r2.json();
@@ -1122,24 +1151,29 @@ function apiProxyPlugin() {
                   } catch (e) { }
                 }
 
-                const isDigitsOnly = /^\d{8,11}$/.test(userId.trim());
-                if (nickname || isDigitsOnly) {
-                  const finalName = nickname || `Player_${userId.trim().slice(-4)}`;
+                if (nickname) {
+                  const countryLabel = region === 'SG' ? 'Cambodia / Singapore' : (region ? `Region ${region}` : 'Global');
                   res.setHeader('Content-Type', 'application/json');
                   res.statusCode = 200;
                   res.end(JSON.stringify({
                     success: true,
-                    username: finalName,
-                    displayName: finalName,
-                    id: userId.trim(),
-                    userId: userId.trim(),
+                    username: nickname,
+                    displayName: nickname,
+                    id: uid,
+                    userId: uid,
                     zone: '',
+                    region: region || 'SG',
+                    country: countryLabel,
+                    level: level,
                     data: {
-                      username: finalName,
-                      displayName: finalName,
-                      id: userId.trim(),
-                      userId: userId.trim(),
-                      zone: ''
+                      username: nickname,
+                      displayName: nickname,
+                      id: uid,
+                      userId: uid,
+                      zone: '',
+                      region: region || 'SG',
+                      country: countryLabel,
+                      level: level
                     }
                   }));
                 } else {
@@ -1147,7 +1181,7 @@ function apiProxyPlugin() {
                   res.statusCode = 404;
                   res.end(JSON.stringify({
                     success: false,
-                    error: 'រកមិនឃើញឈ្មោះអ្នកលេង Free Fire នេះទេ! សូមពិនិត្យមើល Player UID (8-11 ខ្ទង់) ឡើងវិញ'
+                    error: 'រកមិនឃើញគណនី Free Fire នេះទេ! សូមពិនិត្យមើល Player UID ឡើងវិញ'
                   }));
                 }
                 return;

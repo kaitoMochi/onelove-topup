@@ -621,7 +621,7 @@ export default function GameDetailPage({ game, currency, onBack }) {
                             <span>Game ID: <strong className="text-cyan-300 font-mono">{userId}</strong> (Zone: <strong className="text-cyan-300 font-mono">{zoneId}</strong>) • តំបន់: <strong className="text-white">{playerData.country || 'Cambodia'}</strong></span>
                           )}
                           {game.id === 'free-fire' && (
-                            <span>Player UID: <strong className="text-cyan-300 font-mono">{userId}</strong></span>
+                            <span>Player UID: <strong className="text-cyan-300 font-mono">{userId}</strong>{(playerData.region || playerData.country) ? <> • Server: <strong className="text-white">{playerData.region || playerData.country}</strong></> : null}{playerData.level ? <> • <strong className="text-emerald-400 font-mono">Lv.{playerData.level}</strong></> : null}</span>
                           )}
                         </div>
                       </div>

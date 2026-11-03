@@ -35,6 +35,8 @@ export async function verifyPlayer(gameId, userId, zoneId = '') {
     const avatar = inner.avatar || data.avatar || '';
     const id = inner.id || inner.userId || data.id || data.userId || userId.trim();
     const country = inner.country || data.country || 'Cambodia';
+    const region = inner.region || data.region || '';
+    const level = inner.level || data.level || '';
 
     const normalizedData = {
       ...data,
@@ -44,7 +46,9 @@ export async function verifyPlayer(gameId, userId, zoneId = '') {
       avatar,
       id,
       userId: id,
-      country
+      country,
+      region,
+      level
     };
 
     return {
