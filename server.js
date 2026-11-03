@@ -797,41 +797,94 @@ app.post('/api/check-player', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing game or userId' });
     }
 
-    const soraPayload = {
-      game: (game === 'mobile-legends' || game === 'ml') ? 'ml' : 'ff',
-      playerId: userId,
-      ...(zoneId ? { serverId: zoneId } : {})
-    };
+    // --- Mobile Legends & Free Fire: verify via Sora API ---
+    if (game === 'mobile-legends' || game === 'ml' || game === 'free-fire' || game === 'ff') {
+      const soraGame = (game === 'mobile-legends' || game === 'ml') ? 'ml' : 'ff';
+      const soraPayload = {
+        game: soraGame,
+        playerId: userId,
+        ...(zoneId ? { serverId: zoneId } : {})
+      };
 
-    const soraResp = await fetch(`${SORA_CONFIG.baseUrl}/player-info`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${SORA_CONFIG.apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(soraPayload)
-    });
+      const soraResp = await fetch(`${SORA_CONFIG.baseUrl}/player-info`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${SORA_CONFIG.apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(soraPayload)
+      });
 
-    const soraData = await soraResp.json();
-    if (soraResp.ok && soraData && soraData.ok && soraData.data) {
+      const soraData = await soraResp.json().catch(() => null);
+      if (soraResp.ok && soraData && soraData.ok && soraData.data) {
+        return res.json({
+          success: true,
+          data: {
+            username: soraData.data.username || soraData.data.name || soraData.data.nickname,
+            id: userId,
+            zone: zoneId || ''
+          }
+        });
+      }
+
+      // Sora returned no valid data — reject instead of faking a name
+      return res.json({
+        success: false,
+        error: 'ID tidak ditemukan dalam game. Pastikan User ID' + (zoneId !== undefined ? ' dan Zone ID' : '') + ' benar.'
+      });
+    }
+
+    // --- Roblox: verify username via public Roblox API ---
+    if (game === 'roblox') {
+      const username = String(userId).trim();
+      if (!username) {
+        return res.status(400).json({ success: false, error: 'Missing Roblox username' });
+      }
+
+      // Step 1: Lookup username
+      const robloxLookup = await fetch('https://users.roblox.com/v1/usernames/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ usernames: [username], excludeBannedUsers: true })
+      });
+
+      const robloxData = await robloxLookup.json().catch(() => null);
+      if (!robloxLookup.ok || !robloxData || !robloxData.data || robloxData.data.length === 0) {
+        return res.json({
+          success: false,
+          error: 'Username Roblox tidak ditemukan. Pastikan username benar.'
+        });
+      }
+
+      const robloxUser = robloxData.data[0];
+      let avatarUrl = '';
+
+      // Step 2: Fetch avatar thumbnail
+      try {
+        const thumbResp = await fetch(
+          `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${robloxUser.id}&size=150x150&format=Png`
+        );
+        const thumbData = await thumbResp.json().catch(() => null);
+        if (thumbResp.ok && thumbData && thumbData.data && thumbData.data.length > 0) {
+          avatarUrl = thumbData.data[0].imageUrl || '';
+        }
+      } catch (_) {
+        // Avatar fetch failed — not critical, continue without it
+      }
+
       return res.json({
         success: true,
         data: {
-          username: soraData.data.username || soraData.data.name || soraData.data.nickname,
-          id: userId,
-          zone: zoneId || ''
+          username: robloxUser.displayName || robloxUser.name,
+          id: String(robloxUser.id),
+          zone: '',
+          avatar: avatarUrl
         }
       });
     }
 
-    res.json({
-      success: true,
-      data: {
-        username: `Player_${userId.slice(-4)}`,
-        id: userId,
-        zone: zoneId || ''
-      }
-    });
+    // Unknown game type
+    return res.status(400).json({ success: false, error: 'Unsupported game type' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

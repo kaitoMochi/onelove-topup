@@ -111,8 +111,9 @@ export function getAdminSettings() {
       ...DEFAULT_SETTINGS,
       ...parsed,
       games: {
-        ...DEFAULT_SETTINGS.games,
-        ...(parsed.games || {})
+        'mobile-legends': { ...DEFAULT_SETTINGS.games['mobile-legends'], ...(parsed.games?.['mobile-legends'] || {}) },
+        'free-fire': { ...DEFAULT_SETTINGS.games['free-fire'], ...(parsed.games?.['free-fire'] || {}) },
+        'roblox': { ...DEFAULT_SETTINGS.games['roblox'], ...(parsed.games?.['roblox'] || {}) },
       },
       customPrices: {
         ...(DEFAULT_SETTINGS.customPrices || {}),
@@ -154,8 +155,9 @@ export async function syncAdminSettingsWithServer() {
           ...DEFAULT_SETTINGS,
           ...data.settings,
           games: {
-            ...DEFAULT_SETTINGS.games,
-            ...(data.settings.games || {})
+            'mobile-legends': { ...DEFAULT_SETTINGS.games['mobile-legends'], ...(data.settings.games?.['mobile-legends'] || {}) },
+            'free-fire': { ...DEFAULT_SETTINGS.games['free-fire'], ...(data.settings.games?.['free-fire'] || {}) },
+            'roblox': { ...DEFAULT_SETTINGS.games['roblox'], ...(data.settings.games?.['roblox'] || {}) },
           },
           customPrices: {
             ...(DEFAULT_SETTINGS.customPrices || {}),
