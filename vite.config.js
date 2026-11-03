@@ -138,12 +138,13 @@ function apiProxyPlugin() {
   const adminChallenges = new Map(); // keyId -> { fullNonce, ts, createdAt }
 
   // Cleanup expired challenges every minute
-  setInterval(() => {
+  const cleanupTimer = setInterval(() => {
     const now = Date.now();
     for (const [k, v] of adminChallenges.entries()) {
       if (now - v.createdAt > 60000) adminChallenges.delete(k);
     }
   }, 60000);
+  if (cleanupTimer.unref) cleanupTimer.unref();
 
   function unmaskPayload(hex, key) {
     let str = '';
@@ -1158,8 +1159,11 @@ function apiProxyPlugin() {
   };
 }
 
-export default defineConfig({
-  plugins: [react(), apiProxyPlugin()],
+export default defineConfig(({ command }) => ({
+  plugins: [
+    react(),
+    ...(command === 'serve' ? [apiProxyPlugin()] : [])
+  ],
   server: {
     host: '0.0.0.0',
     port: 3000,
@@ -1168,4 +1172,4 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 3000,
   }
-});
+}));
