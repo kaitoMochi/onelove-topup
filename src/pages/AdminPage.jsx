@@ -88,17 +88,29 @@ export default function AdminPage({ onBack }) {
         if (pkgs.ok) setSoraPackages(pkgs.packages || []);
       } else if (gameId === 'roblox') {
         const rbx = await getSoraRobux();
+        const ALLOWED_ROBUX_CODES = [
+          '100_robux',
+          '275_robux',
+          '360_robux',
+          '555_robux',
+          '1000_robux',
+          '2500_robux',
+          '5250_robux',
+          '11000_robux'
+        ];
         if (rbx.ok && rbx.items) {
-          const mappedRbx = rbx.items.map(item => ({
-            id: item.cardId,
-            code: item.cardId,
-            name: item.name,
-            price: Number(item.priceUsd),
-            section: 'diamonds',
-            sectionTitle: 'Digital Robux Codes',
-            category: 'diamonds',
-            img: '/assets/diamonds/robux-gold.svg'
-          }));
+          const mappedRbx = rbx.items
+            .filter(item => ALLOWED_ROBUX_CODES.includes(item.cardId || item.code || item.id))
+            .map(item => ({
+              id: item.cardId,
+              code: item.cardId,
+              name: formatFullPackageName('roblox', item.cardId, item.name),
+              price: Number(item.priceUsd),
+              section: 'diamonds',
+              sectionTitle: 'Digital Robux Codes',
+              category: 'diamonds',
+              img: '/assets/diamonds/robux-gold.svg'
+            }));
           setSoraPackages(mappedRbx);
         } else {
           setSoraPackages([]);

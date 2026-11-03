@@ -484,10 +484,7 @@ function apiProxyPlugin() {
                     '1000_robux': 9.40,
                     '2500_robux': 23.86,
                     '5250_robux': 48.11,
-                    '11000_robux': 95.90,
-                    '50000_idr': 2.79,
-                    '65000_idr': 3.72,
-                    '100000_idr': 5.50
+                    '11000_robux': 95.90
                   };
                   officialPrice = defaultRobuxPrices[packageCode] || 1.78;
                   packageName = formatFullPackageName('roblox', packageCode, `${packageCode} Robux`);

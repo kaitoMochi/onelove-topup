@@ -57,16 +57,24 @@ export function formatFullPackageName(gameId, code, soraName = '') {
       '1000_robux': '1,000 Robux Code',
       '2500_robux': '2,500 Robux Code',
       '5250_robux': '5,250 Robux Code',
-      '11000_robux': '11,000 Robux Code',
-      '50000_idr': '279 Robux (Digital Code)',
-      '65000_idr': '362 Robux (Digital Code)',
-      '100000_idr': '557 Robux (Digital Code)'
+      '11000_robux': '11,000 Robux Code'
     };
     return robuxMap[codeStr] || soraName || `${codeStr} Robux`;
   }
 
   return soraName || codeStr;
 }
+
+export const ALLOWED_ROBUX_CODES = [
+  '100_robux',
+  '275_robux',
+  '360_robux',
+  '555_robux',
+  '1000_robux',
+  '2500_robux',
+  '5250_robux',
+  '11000_robux'
+];
 
 export const GAMES = [
   {
@@ -221,17 +229,14 @@ export const GAMES = [
       { id: 'all', name: '🧱 Digital Robux Codes' }
     ],
     packages: [
-      { id: '100_robux', code: '100_robux', name: '100 Robux', section: 'diamonds', sectionTitle: 'Digital Robux Codes', category: 'diamonds', price: 1.78, bonus: 'កូដឌីជីថលភ្លាមៗ', points: '+2 ពិន្ទុ', popular: true, img: '/assets/diamonds/robux-gold.svg' },
-      { id: '275_robux', code: '275_robux', name: '275 Robux', section: 'diamonds', sectionTitle: 'Digital Robux Codes', category: 'diamonds', price: 2.75, bonus: 'កូដឌីជីថលភ្លាមៗ', points: '+3 ពិន្ទុ', popular: true, img: '/assets/diamonds/robux-gold.svg' },
-      { id: '360_robux', code: '360_robux', name: '360 Robux', section: 'diamonds', sectionTitle: 'Digital Robux Codes', category: 'diamonds', price: 3.60, bonus: 'កូដឌីជីថលភ្លាមៗ', points: '+4 ពិន្ទុ', img: '/assets/diamonds/robux-gold.svg' },
-      { id: '555_robux', code: '555_robux', name: '555 Robux', section: 'diamonds', sectionTitle: 'Digital Robux Codes', category: 'diamonds', price: 5.48, bonus: 'កូដឌីជីថលភ្លាមៗ', points: '+5 ពិន្ទុ', popular: true, img: '/assets/diamonds/robux-gold.svg' },
-      { id: '1000_robux', code: '1000_robux', name: '1,000 Robux', section: 'diamonds', sectionTitle: 'Digital Robux Codes', category: 'diamonds', price: 9.40, bonus: 'កូដឌីជីថលភ្លាមៗ', points: '+9 ពិន្ទុ', popular: true, img: '/assets/diamonds/robux-gold.svg' },
-      { id: '2500_robux', code: '2500_robux', name: '2,500 Robux', section: 'diamonds', sectionTitle: 'Digital Robux Codes', category: 'diamonds', price: 23.86, bonus: 'កូដឌីជីថល VIP', points: '+24 ពិន្ទុ', img: '/assets/diamonds/robux-card.png' },
-      { id: '5250_robux', code: '5250_robux', name: '5,250 Robux', section: 'diamonds', sectionTitle: 'Digital Robux Codes', category: 'diamonds', price: 48.11, bonus: 'កូដឌីជីថល VIP', points: '+48 ពិន្ទុ', img: '/assets/diamonds/robux-card.png' },
-      { id: '11000_robux', code: '11000_robux', name: '11,000 Robux', section: 'diamonds', sectionTitle: 'Digital Robux Codes', category: 'diamonds', price: 95.90, bonus: 'កូដឌីជីថល VIP', points: '+96 ពិន្ទុ', img: '/assets/diamonds/robux-card.png' },
-      { id: '50000_idr', code: '50000_idr', name: '279 Robux (IDR Code)', section: 'diamonds', sectionTitle: 'Digital Robux Codes', category: 'diamonds', price: 2.79, bonus: 'Direct Redeem', points: '+3 ពិន្ទុ', img: '/assets/diamonds/robux-gold.svg' },
-      { id: '65000_idr', code: '65000_idr', name: '362 Robux (IDR Code)', section: 'diamonds', sectionTitle: 'Digital Robux Codes', category: 'diamonds', price: 3.72, bonus: 'Direct Redeem', points: '+4 ពិន្ទុ', img: '/assets/diamonds/robux-gold.svg' },
-      { id: '100000_idr', code: '100000_idr', name: '557 Robux (IDR Code)', section: 'diamonds', sectionTitle: 'Digital Robux Codes', category: 'diamonds', price: 5.50, bonus: 'Direct Redeem', points: '+6 ពិន្ទុ', img: '/assets/diamonds/robux-gold.svg' }
+      { id: '100_robux', code: '100_robux', name: '100 Robux Code', section: 'diamonds', sectionTitle: 'Digital Robux Codes', category: 'diamonds', price: 1.78, bonus: 'កូដឌីជីថលភ្លាមៗ', points: '+2 ពិន្ទុ', popular: true, img: '/assets/diamonds/robux-gold.svg' },
+      { id: '275_robux', code: '275_robux', name: '275 Robux Code', section: 'diamonds', sectionTitle: 'Digital Robux Codes', category: 'diamonds', price: 2.75, bonus: 'កូដឌីជីថលភ្លាមៗ', points: '+3 ពិន្ទុ', popular: true, img: '/assets/diamonds/robux-gold.svg' },
+      { id: '360_robux', code: '360_robux', name: '360 Robux Code', section: 'diamonds', sectionTitle: 'Digital Robux Codes', category: 'diamonds', price: 3.60, bonus: 'កូដឌីជីថលភ្លាមៗ', points: '+4 ពិន្ទុ', img: '/assets/diamonds/robux-gold.svg' },
+      { id: '555_robux', code: '555_robux', name: '555 Robux Code', section: 'diamonds', sectionTitle: 'Digital Robux Codes', category: 'diamonds', price: 5.48, bonus: 'កូដឌីជីថលភ្លាមៗ', points: '+5 ពិន្ទុ', popular: true, img: '/assets/diamonds/robux-gold.svg' },
+      { id: '1000_robux', code: '1000_robux', name: '1,000 Robux Code', section: 'diamonds', sectionTitle: 'Digital Robux Codes', category: 'diamonds', price: 9.40, bonus: 'កូដឌីជីថលភ្លាមៗ', points: '+9 ពិន្ទុ', popular: true, img: '/assets/diamonds/robux-gold.svg' },
+      { id: '2500_robux', code: '2500_robux', name: '2,500 Robux Code', section: 'diamonds', sectionTitle: 'Digital Robux Codes', category: 'diamonds', price: 23.86, bonus: 'កូដឌីជីថល VIP', points: '+24 ពិន្ទុ', img: '/assets/diamonds/robux-card.png' },
+      { id: '5250_robux', code: '5250_robux', name: '5,250 Robux Code', section: 'diamonds', sectionTitle: 'Digital Robux Codes', category: 'diamonds', price: 48.11, bonus: 'កូដឌីជីថល VIP', points: '+48 ពិន្ទុ', img: '/assets/diamonds/robux-card.png' },
+      { id: '11000_robux', code: '11000_robux', name: '11,000 Robux Code', section: 'diamonds', sectionTitle: 'Digital Robux Codes', category: 'diamonds', price: 95.90, bonus: 'កូដឌីជីថល VIP', points: '+96 ពិន្ទុ', img: '/assets/diamonds/robux-card.png' }
     ]
   }
 ];

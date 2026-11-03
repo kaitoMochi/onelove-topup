@@ -65,7 +65,18 @@ export default function GameDetailPage({ game, currency, onBack }) {
       try {
         if (game.id === 'roblox') {
           const robuxData = await getSoraRobux();
-          const items = (robuxData && robuxData.ok && robuxData.items?.length > 0) ? robuxData.items : (game.packages || []);
+          const ALLOWED_ROBUX_CODES = [
+            '100_robux',
+            '275_robux',
+            '360_robux',
+            '555_robux',
+            '1000_robux',
+            '2500_robux',
+            '5250_robux',
+            '11000_robux'
+          ];
+          const rawItems = (robuxData && robuxData.ok && robuxData.items?.length > 0) ? robuxData.items : (game.packages || []);
+          const items = rawItems.filter(item => ALLOWED_ROBUX_CODES.includes(item.cardId || item.code || item.id));
           if (isMounted) {
             const mapped = items.map(item => {
               const code = item.cardId || item.code || item.id;
