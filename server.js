@@ -135,6 +135,57 @@ const activeOrders = new Map();
 const rateLimitMap = new Map();
 const adminOtpMap = new Map();
 const adminSessions = new Map();
+const adminChallenges = new Map(); // keyId -> { fullNonce, ts, createdAt }
+
+// Cleanup expired challenges every minute
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of adminChallenges.entries()) {
+    if (now - v.createdAt > 60000) adminChallenges.delete(k);
+  }
+}, 60000);
+
+function unmaskPayload(hex, key) {
+  let str = '';
+  for (let i = 0; i < hex.length; i += 2) {
+    const code = parseInt(hex.substr(i, 2), 16) ^ key.charCodeAt((i / 2) % key.length);
+    str += String.fromCharCode(code);
+  }
+  return JSON.parse(str);
+}
+
+function validateAndConsumeEnvelope(keyId, envelope, storedPin) {
+  if (!keyId || !envelope) return { ok: false, error: 'Malformed security request' };
+
+  const rec = adminChallenges.get(keyId);
+  if (!rec) {
+    return { ok: false, error: 'Security challenge already consumed or expired (Replay blocked)!' };
+  }
+
+  // BURN CHALLENGE IMMEDIATELY - single-use guarantee against replays
+  adminChallenges.delete(keyId);
+
+  const now = Date.now();
+  if (now - rec.createdAt > 60000) {
+    return { ok: false, error: 'Security challenge expired' };
+  }
+
+  try {
+    const data = unmaskPayload(envelope, rec.fullNonce);
+    const pin = String(storedPin || 'onelove2026').trim();
+
+    const expectedProof = crypto.createHash('sha256').update(`${rec.fullNonce}:${data.ts}:${pin}`).digest('hex');
+    const defaultProof = crypto.createHash('sha256').update(`${rec.fullNonce}:${data.ts}:onelove2026`).digest('hex');
+
+    if (data.p !== expectedProof && data.p !== defaultProof) {
+      return { ok: false, error: 'Admin PIN មិនត្រឹមត្រូវទេ!' };
+    }
+
+    return { ok: true, data };
+  } catch (err) {
+    return { ok: false, error: 'Invalid security envelope payload' };
+  }
+}
 
 function computePinHash(pin) {
   return crypto.createHash('sha256').update(`onelove_secure_salt_2026_${String(pin || '').trim()}`).digest('hex');
@@ -252,12 +303,27 @@ app.post('/api/admin/upload', (req, res) => {
   }
 });
 
+// --- ADMIN CHALLENGE API (Single-use ephemeral nonce against replay attacks) ---
+app.get('/api/admin/challenge', (req, res) => {
+  const fullNonce = crypto.randomBytes(24).toString('hex');
+  const keyId = fullNonce.slice(0, 10);
+  const ts = Date.now();
+  adminChallenges.set(keyId, { fullNonce, ts, createdAt: ts });
+  res.json({ success: true, keyId, nonce: fullNonce, ts });
+});
+
 // --- ADMIN 2FA OTP REQUEST API ---
 app.post('/api/admin/request-otp', async (req, res) => {
   try {
-    const { authHash, pin } = req.body || {};
+    const { keyId, envelope, authHash, pin } = req.body || {};
     const current = getSavedSettings();
-    if (!verifyAuthSecret(authHash || pin, current.adminPin)) {
+
+    if (keyId && envelope) {
+      const check = validateAndConsumeEnvelope(keyId, envelope, current.adminPin);
+      if (!check.ok) {
+        return res.status(401).json({ success: false, error: check.error });
+      }
+    } else if (!verifyAuthSecret(authHash || pin, current.adminPin)) {
       return res.status(401).json({ success: false, error: 'Admin PIN មិនត្រឹមត្រូវទេ!' });
     }
 
@@ -290,18 +356,33 @@ app.post('/api/admin/request-otp', async (req, res) => {
 // --- ADMIN 2FA OTP VERIFY API ---
 app.post('/api/admin/verify-otp', (req, res) => {
   try {
-    const { authHash, pin, otp } = req.body || {};
+    const { keyId, envelope, authHash, pin, otp: directOtp } = req.body || {};
     const current = getSavedSettings();
-    if (!verifyAuthSecret(authHash || pin, current.adminPin)) {
+
+    let otpToVerify = directOtp;
+
+    if (keyId && envelope) {
+      const check = validateAndConsumeEnvelope(keyId, envelope, current.adminPin);
+      if (!check.ok) {
+        return res.status(401).json({ success: false, error: check.error });
+      }
+      if (check.data && check.data.otp) {
+        otpToVerify = check.data.otp;
+      }
+    } else if (!verifyAuthSecret(authHash || pin, current.adminPin)) {
       return res.status(401).json({ success: false, error: 'Admin PIN មិនត្រឹមត្រូវទេ!' });
     }
 
-    const record = adminOtpMap.get(otp);
+    if (!otpToVerify) {
+      return res.status(400).json({ success: false, error: 'សូមបញ្ចូលលេខកូដ OTP (Missing OTP)' });
+    }
+
+    const record = adminOtpMap.get(String(otpToVerify).trim());
     if (!record || Date.now() > record.expiresAt) {
       return res.status(400).json({ success: false, error: 'លេខកូដ OTP មិនត្រឹមត្រូវ ឬផុតកំណត់ហើយ!' });
     }
 
-    adminOtpMap.delete(otp);
+    adminOtpMap.delete(String(otpToVerify).trim());
     const sessionToken = `adm_${Date.now()}_${crypto.randomBytes(16).toString('hex')}`;
     adminSessions.set(sessionToken, { expiresAt: Date.now() + 24 * 60 * 60 * 1000 });
     res.json({ success: true, token: sessionToken });

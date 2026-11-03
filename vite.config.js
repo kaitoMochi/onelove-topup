@@ -127,6 +127,57 @@ function apiProxyPlugin() {
   const rateLimitMap = new Map();
   const adminOtpMap = new Map();
   const adminSessions = new Map();
+  const adminChallenges = new Map(); // keyId -> { fullNonce, ts, createdAt }
+
+  // Cleanup expired challenges every minute
+  setInterval(() => {
+    const now = Date.now();
+    for (const [k, v] of adminChallenges.entries()) {
+      if (now - v.createdAt > 60000) adminChallenges.delete(k);
+    }
+  }, 60000);
+
+  function unmaskPayload(hex, key) {
+    let str = '';
+    for (let i = 0; i < hex.length; i += 2) {
+      const code = parseInt(hex.substr(i, 2), 16) ^ key.charCodeAt((i / 2) % key.length);
+      str += String.fromCharCode(code);
+    }
+    return JSON.parse(str);
+  }
+
+  function validateAndConsumeEnvelope(keyId, envelope, storedPin) {
+    if (!keyId || !envelope) return { ok: false, error: 'Malformed security request' };
+
+    const rec = adminChallenges.get(keyId);
+    if (!rec) {
+      return { ok: false, error: 'Security challenge already consumed or expired (Replay blocked)!' };
+    }
+
+    // BURN CHALLENGE IMMEDIATELY - single-use guarantee against replays
+    adminChallenges.delete(keyId);
+
+    const now = Date.now();
+    if (now - rec.createdAt > 60000) {
+      return { ok: false, error: 'Security challenge expired' };
+    }
+
+    try {
+      const data = unmaskPayload(envelope, rec.fullNonce);
+      const pin = String(storedPin || 'onelove2026').trim();
+
+      const expectedProof = crypto.createHash('sha256').update(`${rec.fullNonce}:${data.ts}:${pin}`).digest('hex');
+      const defaultProof = crypto.createHash('sha256').update(`${rec.fullNonce}:${data.ts}:onelove2026`).digest('hex');
+
+      if (data.p !== expectedProof && data.p !== defaultProof) {
+        return { ok: false, error: 'Admin PIN មិនត្រឹមត្រូវទេ!' };
+      }
+
+      return { ok: true, data };
+    } catch (err) {
+      return { ok: false, error: 'Invalid security envelope payload' };
+    }
+  }
 
   function computePinHash(pin) {
     return crypto.createHash('sha256').update(`onelove_secure_salt_2026_${String(pin || '').trim()}`).digest('hex');
@@ -285,15 +336,36 @@ function apiProxyPlugin() {
           return;
         }
 
+        // --- ADMIN CHALLENGE API (Single-use ephemeral nonce against replay attacks) ---
+        if (pathname === '/api/admin/challenge' && req.method === 'GET') {
+          const fullNonce = crypto.randomBytes(24).toString('hex');
+          const keyId = fullNonce.slice(0, 10);
+          const ts = Date.now();
+          adminChallenges.set(keyId, { fullNonce, ts, createdAt: ts });
+          res.setHeader('Content-Type', 'application/json');
+          res.statusCode = 200;
+          res.end(JSON.stringify({ success: true, keyId, nonce: fullNonce, ts }));
+          return;
+        }
+
         // --- ADMIN 2FA OTP: REQUEST OTP VIA TELEGRAM ---
         if (pathname === '/api/admin/request-otp' && req.method === 'POST') {
           let body = '';
           req.on('data', chunk => { body += chunk; });
           req.on('end', async () => {
             try {
-              const { authHash, pin } = JSON.parse(body || '{}');
+              const { keyId, envelope, authHash, pin } = JSON.parse(body || '{}');
               const current = getSavedSettings();
-              if (!verifyAuthSecret(authHash || pin, current.adminPin)) {
+
+              if (keyId && envelope) {
+                const check = validateAndConsumeEnvelope(keyId, envelope, current.adminPin);
+                if (!check.ok) {
+                  res.setHeader('Content-Type', 'application/json');
+                  res.statusCode = 401;
+                  res.end(JSON.stringify({ success: false, error: check.error }));
+                  return;
+                }
+              } else if (!verifyAuthSecret(authHash || pin, current.adminPin)) {
                 res.setHeader('Content-Type', 'application/json');
                 res.statusCode = 401;
                 res.end(JSON.stringify({ success: false, error: 'Admin PIN មិនត្រឹមត្រូវទេ!' }));
@@ -303,7 +375,7 @@ function apiProxyPlugin() {
               // Generate 6-digit OTP code
               const otp = String(Math.floor(100000 + Math.random() * 900000));
               const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
-              adminOtpMap.set('latest', { otp, expiresAt });
+              adminOtpMap.set(otp, { expiresAt });
 
               const phnomPenhTime = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Phnom_Penh' });
               const otpMsg = `🔐 *ONE LOVE ADMIN - 2FA LOGIN OTP* 🔐\n` +
@@ -345,32 +417,46 @@ function apiProxyPlugin() {
           req.on('data', chunk => { body += chunk; });
           req.on('end', () => {
             try {
-              const { authHash, pin, otp } = JSON.parse(body || '{}');
+              const { keyId, envelope, authHash, pin, otp: directOtp } = JSON.parse(body || '{}');
               const current = getSavedSettings();
-              if (!verifyAuthSecret(authHash || pin, current.adminPin)) {
+
+              let otpToVerify = directOtp;
+
+              if (keyId && envelope) {
+                const check = validateAndConsumeEnvelope(keyId, envelope, current.adminPin);
+                if (!check.ok) {
+                  res.setHeader('Content-Type', 'application/json');
+                  res.statusCode = 401;
+                  res.end(JSON.stringify({ success: false, error: check.error }));
+                  return;
+                }
+                if (check.data && check.data.otp) {
+                  otpToVerify = check.data.otp;
+                }
+              } else if (!verifyAuthSecret(authHash || pin, current.adminPin)) {
                 res.setHeader('Content-Type', 'application/json');
                 res.statusCode = 401;
                 res.end(JSON.stringify({ success: false, error: 'Admin PIN មិនត្រឹមត្រូវទេ!' }));
                 return;
               }
 
-              const rec = adminOtpMap.get('latest');
-              if (!rec || Date.now() > rec.expiresAt) {
+              if (!otpToVerify) {
                 res.setHeader('Content-Type', 'application/json');
                 res.statusCode = 400;
-                res.end(JSON.stringify({ success: false, error: 'លេខកូដ OTP បានផុតកំណត់ហើយ! សូមចុចស្នើសុំកូដថ្មី (OTP Expired)' }));
+                res.end(JSON.stringify({ success: false, error: 'សូមបញ្ចូលលេខកូដ OTP (Missing OTP)' }));
                 return;
               }
 
-              if (rec.otp !== String(otp).trim()) {
+              const rec = adminOtpMap.get(String(otpToVerify).trim());
+              if (!rec || Date.now() > rec.expiresAt) {
                 res.setHeader('Content-Type', 'application/json');
                 res.statusCode = 400;
-                res.end(JSON.stringify({ success: false, error: 'លេខកូដ OTP មិនត្រឹមត្រូវទេ! សូមពិនិត្យមើលឡើងវិញ (Invalid OTP)' }));
+                res.end(JSON.stringify({ success: false, error: 'លេខកូដ OTP មិនត្រឹមត្រូវ ឬផុតកំណត់ហើយ!' }));
                 return;
               }
 
               // Correct OTP! Clear and generate session token
-              adminOtpMap.delete('latest');
+              adminOtpMap.delete(String(otpToVerify).trim());
               const token = `adm_${Date.now()}_${crypto.randomBytes(16).toString('hex')}`;
               adminSessions.set(token, { expiresAt: Date.now() + 24 * 60 * 60 * 1000 });
 

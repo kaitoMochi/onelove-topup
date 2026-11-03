@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getSoraProfile, getSoraPackages, getSoraOrders, getSoraRobux } from '../services/sora';
-import { getAdminSettings, saveAdminSettings, removeImageBackground, uploadAdminAsset, getCustomPrice, syncAdminSettingsWithServer, hashAdminSecret } from '../services/adminSettings';
+import { getAdminSettings, saveAdminSettings, removeImageBackground, uploadAdminAsset, getCustomPrice, syncAdminSettingsWithServer, hashAdminSecret, createSecureEnvelope } from '../services/adminSettings';
 import { GAMES, formatFullPackageName } from '../data/games';
 
 export default function AdminPage({ onBack }) {
@@ -128,7 +128,7 @@ export default function AdminPage({ onBack }) {
     }
   };
 
-  // Step 1: Request 2FA OTP via Telegram Bot (using SHA-256 hash to hide password in Inspect/Network)
+  // Step 1: Request 2FA OTP via Telegram Bot (using Anti-Replay Single-Use Nonce & Masked Cipher)
   const handleRequestOtp = async (e) => {
     if (e) e.preventDefault();
     if (!pinInput.trim()) {
@@ -141,11 +141,11 @@ export default function AdminPage({ onBack }) {
     setOtpSentNotice('');
 
     try {
-      const authHash = await hashAdminSecret(pinInput.trim());
+      const envelope = await createSecureEnvelope(pinInput.trim());
       const res = await fetch('/api/admin/request-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ authHash })
+        body: JSON.stringify(envelope)
       });
       const data = await res.json();
       if (res.ok && data.success) {
@@ -161,7 +161,7 @@ export default function AdminPage({ onBack }) {
     }
   };
 
-  // Step 2: Verify 2FA OTP (uses SHA-256 hash + 6-digit OTP, no plaintext password)
+  // Step 2: Verify 2FA OTP (uses single-use ephemeral proof + 6-digit OTP, zero plaintext)
   const handleVerifyOtp = async (e) => {
     if (e) e.preventDefault();
     if (!otpInput.trim()) {
@@ -173,11 +173,11 @@ export default function AdminPage({ onBack }) {
     setAuthError('');
 
     try {
-      const authHash = await hashAdminSecret(pinInput.trim());
+      const envelope = await createSecureEnvelope(pinInput.trim(), { otp: otpInput.trim() });
       const res = await fetch('/api/admin/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ authHash, otp: otpInput.trim() })
+        body: JSON.stringify(envelope)
       });
       const data = await res.json();
       if (res.ok && data.success) {
