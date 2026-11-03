@@ -10,32 +10,24 @@
       <stop offset="50%" stop-color="#fbbf24" />
       <stop offset="100%" stop-color="#00f0ff" />
     </linearGradient>
-    <filter id="comboGlow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="3.5" result="blur" />
-      <feMerge>
-        <feMergeNode in="blur" />
-        <feMergeNode in="SourceGraphic" />
-      </feMerge>
-    </filter>
   </defs>
 
-  <circle cx="64" cy="64" r="50" fill="#be185d" opacity="0.3" filter="url(#comboGlow)" />
+  <circle cx="64" cy="64" r="50" fill="#be185d" opacity="0.2" />
 
   <g transform="rotate(-3 64 64)">
-    <rect x="20" y="24" width="88" height="80" rx="14" fill="url(#comboBg)" stroke="url(#comboBorder)" stroke-width="2.5" filter="url(#comboGlow)" />
+    <rect x="20" y="24" width="88" height="80" rx="14" fill="url(#comboBg)" stroke="url(#comboBorder)" stroke-width="2.5" />
     <rect x="24" y="28" width="80" height="72" rx="10" fill="none" stroke="#fbcfe8" stroke-width="1" stroke-dasharray="3 2" opacity="0.75" />
 
     <!-- Multi-tier Star & Jewels Bundle Centerpiece -->
     <g transform="translate(64, 56)">
       <!-- 8-point gold star -->
-      <polygon points="0,-16 4,-6 14,-6 6,2 9,12 0,6 -9,12 -6,2 -14,-6 -4,-6" fill="#fbbf24" stroke="#78350f" stroke-width="1.2" filter="url(#comboGlow)" />
+      <polygon points="0,-16 4,-6 14,-6 6,2 9,12 0,6 -9,12 -6,2 -14,-6 -4,-6" fill="#fbbf24" stroke="#78350f" stroke-width="1.2" />
       <!-- Central Cyan Diamond -->
       <polygon points="0,-7 6,0 0,7 -6,0" fill="#38bdf8" stroke="#ffffff" stroke-width="1" />
       <circle cx="0" cy="0" r="1.5" fill="#ffffff" />
     </g>
 
-    <rect x="26" y="86" width="76" height="13" rx="6.5" fill="#e11d48" stroke="#fbbf24" stroke-width="1" />
+    <rect x="24" y="86" width="80" height="13" rx="6.5" fill="#e11d48" stroke="#fbbf24" stroke-width="1" />
     <text x="64" y="95.5" font-family="'Poppins', sans-serif, Arial" font-size="6.8" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="0.5">M+W+L COMBO</text>
   </g>
 </svg>
-

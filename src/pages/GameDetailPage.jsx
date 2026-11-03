@@ -824,7 +824,7 @@ export default function GameDetailPage({ game, currency, onBack }) {
                               <div
                                 key={pkg.id}
                                 onClick={() => setSelectedPackage(pkg)}
-                                className={`relative flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all duration-200 ${isSelected
+                                className={`package-item-card relative flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-transform duration-150 ${isSelected
                                     ? 'bg-[#1d0e37] border-2 border-cyan-400 shadow-[0_0_15px_rgba(0,240,255,0.35)] scale-[1.01]'
                                     : 'bg-[#150a28] hover:bg-[#1a0d33] border border-purple-500/25 hover:border-purple-400/40 shadow-sm'
                                   } ${isPkgOutOfStock ? 'opacity-65' : ''}`}

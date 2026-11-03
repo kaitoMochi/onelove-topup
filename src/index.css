@@ -19,14 +19,37 @@
   --text-white: #ffffff;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   font-family: 'Poppins', 'Noto Sans Khmer', sans-serif;
-  background: radial-gradient(circle at 50% 0%, #1f083d 0%, #0b0318 60%, #06010d 100%);
-  background-attachment: fixed;
+  background-color: #0b0318;
   min-height: 100vh;
   margin: 0;
   padding: 0;
   color: #f1f5f9;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* GPU hardware-accelerated fixed background prevents scroll lag / repaints */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 0%, #1f083d 0%, #0b0318 60%, #06010d 100%);
+  transform: translateZ(0);
+}
+
+/* High-performance virtualized rendering for 95+ package grid */
+.package-item-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 72px;
+  transform: translateZ(0);
 }
 
 /* Custom Scrollbar */
