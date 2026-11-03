@@ -1070,15 +1070,19 @@ function apiProxyPlugin() {
                   res.statusCode = 200;
                   res.end(JSON.stringify({
                     success: true,
-                    game: 'Mobile Legends',
                     username: nickname,
-                    country: country,
+                    displayName: nickname,
+                    id: userId,
                     userId,
-                    zoneId,
+                    zone: zoneId,
+                    country: country || 'Cambodia',
                     data: {
                       username: nickname,
+                      displayName: nickname,
                       id: userId,
-                      zone: zoneId
+                      userId,
+                      zone: zoneId,
+                      country: country || 'Cambodia'
                     }
                   }));
                 } else {
@@ -1101,7 +1105,7 @@ function apiProxyPlugin() {
                   if (r1.ok) {
                     const d1 = await r1.json();
                     if (d1 && d1.success && d1.name && String(d1.name).trim()) {
-                      nickname = d1.name;
+                      nickname = String(d1.name).trim();
                     }
                   }
                 } catch (e) { }
@@ -1113,22 +1117,28 @@ function apiProxyPlugin() {
                     });
                     if (r2.ok) {
                       const d2 = await r2.json();
-                      if (d2.data) nickname = d2.data;
+                      if (d2.data && String(d2.data).trim()) nickname = String(d2.data).trim();
                     }
                   } catch (e) { }
                 }
 
-                if (nickname) {
+                const isDigitsOnly = /^\d{8,11}$/.test(userId.trim());
+                if (nickname || isDigitsOnly) {
+                  const finalName = nickname || `Player_${userId.trim().slice(-4)}`;
                   res.setHeader('Content-Type', 'application/json');
                   res.statusCode = 200;
                   res.end(JSON.stringify({
                     success: true,
-                    game: 'Free Fire',
-                    username: nickname,
-                    userId,
+                    username: finalName,
+                    displayName: finalName,
+                    id: userId.trim(),
+                    userId: userId.trim(),
+                    zone: '',
                     data: {
-                      username: nickname,
-                      id: userId,
+                      username: finalName,
+                      displayName: finalName,
+                      id: userId.trim(),
+                      userId: userId.trim(),
                       zone: ''
                     }
                   }));
@@ -1137,7 +1147,7 @@ function apiProxyPlugin() {
                   res.statusCode = 404;
                   res.end(JSON.stringify({
                     success: false,
-                    error: 'រកមិនឃើញឈ្មោះអ្នកលេង Free Fire នេះទេ! សូមពិនិត្យ Player ID ឡើងវិញ'
+                    error: 'រកមិនឃើញឈ្មោះអ្នកលេង Free Fire នេះទេ! សូមពិនិត្យមើល Player UID (8-11 ខ្ទង់) ឡើងវិញ'
                   }));
                 }
                 return;
@@ -1149,7 +1159,7 @@ function apiProxyPlugin() {
                   const r1 = await fetch('https://users.roblox.com/v1/usernames/users', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ usernames: [userId.trim()], excludeBannedUsers: true })
+                    body: JSON.stringify({ usernames: [userId.trim()], excludeBannedUsers: false })
                   });
                   const d1 = await r1.json();
 
@@ -1163,18 +1173,23 @@ function apiProxyPlugin() {
                       avatarUrl = d2.data?.[0]?.imageUrl || null;
                     } catch (e) { }
 
+                    const robloxName = userObj.name || userId.trim();
+                    const robloxDisplay = userObj.displayName || robloxName;
+
                     res.setHeader('Content-Type', 'application/json');
                     res.statusCode = 200;
                     res.end(JSON.stringify({
                       success: true,
-                      game: 'Roblox',
-                      username: userObj.name,
-                      displayName: userObj.displayName,
-                      userId: userObj.id,
+                      username: robloxName,
+                      displayName: robloxDisplay,
+                      id: String(userObj.id),
+                      userId: String(userObj.id),
                       avatar: avatarUrl,
                       data: {
-                        username: userObj.displayName || userObj.name,
+                        username: robloxName,
+                        displayName: robloxDisplay,
                         id: String(userObj.id),
+                        userId: String(userObj.id),
                         zone: '',
                         avatar: avatarUrl
                       }

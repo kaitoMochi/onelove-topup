@@ -52,22 +52,20 @@ export default function Navbar({ currency, setCurrency, onOpenAdmin }) {
               <button
                 type="button"
                 onClick={() => setCurrency('USD')}
-                className={`px-2.5 py-1 rounded-full font-bold transition-all text-[11px] sm:text-xs ${
-                  currency === 'USD'
+                className={`px-2.5 py-1 rounded-full font-bold transition-all text-[11px] sm:text-xs ${currency === 'USD'
                     ? 'bg-[#00f0ff] text-[#0a0316] shadow-[0_0_10px_rgba(0,240,255,0.5)]'
                     : 'text-gray-300 hover:text-white'
-                }`}
+                  }`}
               >
                 USD ($)
               </button>
               <button
                 type="button"
                 onClick={() => setCurrency('KHR')}
-                className={`px-2.5 py-1 rounded-full font-bold transition-all text-[11px] sm:text-xs ${
-                  currency === 'KHR'
+                className={`px-2.5 py-1 rounded-full font-bold transition-all text-[11px] sm:text-xs ${currency === 'KHR'
                     ? 'bg-[#00f0ff] text-[#0a0316] shadow-[0_0_10px_rgba(0,240,255,0.5)]'
                     : 'text-gray-300 hover:text-white'
-                }`}
+                  }`}
               >
                 KHR (៛)
               </button>

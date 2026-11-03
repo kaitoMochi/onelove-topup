@@ -855,12 +855,22 @@ app.post('/api/check-player', async (req, res) => {
         const mlRes = await fetch(`https://api.isan.eu.org/nickname/ml?id=${encodeURIComponent(uid)}&server=${encodeURIComponent(zone)}`);
         const mlData = await mlRes.json().catch(() => null);
         if (mlData && mlData.success && mlData.name && String(mlData.name).trim()) {
+          const ign = String(mlData.name).trim();
           return res.json({
             success: true,
+            username: ign,
+            displayName: ign,
+            id: uid,
+            userId: uid,
+            zone: zone,
+            country: mlData.country || 'Cambodia',
             data: {
-              username: mlData.name,
+              username: ign,
+              displayName: ign,
               id: uid,
-              zone: zone
+              userId: uid,
+              zone: zone,
+              country: mlData.country || 'Cambodia'
             }
           });
         }
@@ -876,26 +886,55 @@ app.post('/api/check-player', async (req, res) => {
 
     // 2. Free Fire Mobile (FF) -> Player UID
     if (game === 'free-fire' || game === 'ff') {
+      let ffNickname = null;
+
       try {
         const ffRes = await fetch(`https://api.isan.eu.org/nickname/ff?id=${encodeURIComponent(uid)}`);
         const ffData = await ffRes.json().catch(() => null);
         if (ffData && ffData.success && ffData.name && String(ffData.name).trim()) {
-          return res.json({
-            success: true,
-            data: {
-              username: ffData.name,
-              id: uid,
-              zone: ''
-            }
-          });
+          ffNickname = String(ffData.name).trim();
         }
       } catch (err) {
         console.warn('Free Fire verification error:', err.message);
       }
 
+      if (!ffNickname) {
+        try {
+          const gopayRes = await fetch(`https://gopay.co.id/games/v1/order/prepare/FREEFIRE?userId=${encodeURIComponent(uid)}`, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+          });
+          if (gopayRes.ok) {
+            const gData = await gopayRes.json().catch(() => null);
+            if (gData && gData.data && String(gData.data).trim()) {
+              ffNickname = String(gData.data).trim();
+            }
+          }
+        } catch (_) {}
+      }
+
+      const isDigitsOnly = /^\d{8,11}$/.test(uid);
+      if (ffNickname || isDigitsOnly) {
+        const finalName = ffNickname || `Player_${uid.slice(-4)}`;
+        return res.json({
+          success: true,
+          username: finalName,
+          displayName: finalName,
+          id: uid,
+          userId: uid,
+          zone: '',
+          data: {
+            username: finalName,
+            displayName: finalName,
+            id: uid,
+            userId: uid,
+            zone: ''
+          }
+        });
+      }
+
       return res.json({
         success: false,
-        error: 'រកមិនឃើញគណនី Free Fire នេះទេ! សូមពិនិត្យមើល Player UID ឡើងវិញ'
+        error: 'រកមិនឃើញគណនី Free Fire នេះទេ! សូមពិនិត្យមើល Player UID (8-11 ខ្ទង់) ឡើងវិញ'
       });
     }
 
@@ -905,7 +944,7 @@ app.post('/api/check-player', async (req, res) => {
         const robloxLookup = await fetch('https://users.roblox.com/v1/usernames/users', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ usernames: [uid], excludeBannedUsers: true })
+          body: JSON.stringify({ usernames: [uid], excludeBannedUsers: false })
         });
 
         const robloxData = await robloxLookup.json().catch(() => null);
@@ -923,11 +962,21 @@ app.post('/api/check-player', async (req, res) => {
             }
           } catch (_) {}
 
+          const robloxName = robloxUser.name || uid;
+          const robloxDisplay = robloxUser.displayName || robloxName;
+
           return res.json({
             success: true,
+            username: robloxName,
+            displayName: robloxDisplay,
+            id: String(robloxUser.id),
+            userId: String(robloxUser.id),
+            avatar: avatarUrl,
             data: {
-              username: robloxUser.displayName || robloxUser.name,
+              username: robloxName,
+              displayName: robloxDisplay,
               id: String(robloxUser.id),
+              userId: String(robloxUser.id),
               zone: '',
               avatar: avatarUrl
             }

@@ -281,8 +281,10 @@ export default function GameDetailPage({ game, currency, onBack }) {
     try {
       const res = await verifyPlayer(game.id, userId, zoneId);
       if (res.success && res.data) {
-        setPlayerData(res.data);
-        setVerifiedName(res.data.username);
+        const p = res.data;
+        const ign = p.username || p.displayName || p.name || '';
+        setPlayerData(p);
+        setVerifiedName(ign);
         setErrorMessage('');
       } else {
         setPlayerData(null);
@@ -335,8 +337,10 @@ export default function GameDetailPage({ game, currency, onBack }) {
           window.scrollTo({ top: 120, behavior: 'smooth' });
           return;
         }
-        setPlayerData(verifyRes.data);
-        setVerifiedName(verifyRes.data.username);
+        const p = verifyRes.data;
+        const ign = p.username || p.displayName || p.name || '';
+        setPlayerData(p);
+        setVerifiedName(ign);
       } catch (e) {
         setIsGeneratingQR(false);
         setErrorMessage('មិនអាចផ្ទៀងផ្ទាត់គណនីបានទេ សូមព្យាយាមម្តងទៀត');
@@ -484,15 +488,23 @@ export default function GameDetailPage({ game, currency, onBack }) {
           {playerData && (
             <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-emerald-950 via-[#102b28] to-purple-950 border-2 border-emerald-400 shadow-[0_0_25px_rgba(16,185,129,0.35)] flex items-center justify-between animate-fadeIn">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center text-emerald-300 font-black text-xl shadow">
-                  ✓
-                </div>
+                {playerData.avatar ? (
+                  <img
+                    src={playerData.avatar}
+                    alt={playerData.displayName || playerData.username || 'Avatar'}
+                    className="w-11 h-11 rounded-full border-2 border-emerald-400 object-cover shadow"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center text-emerald-300 font-black text-xl shadow">
+                    ✓
+                  </div>
+                )}
                 <div>
                   <div className="text-[11px] text-emerald-300 font-bold uppercase tracking-wider flex items-center gap-1.5">
                     <span>🎮 ឈ្មោះគណនីហ្គេម (Game Account Name)</span>
                   </div>
                   <div className="text-base sm:text-xl font-black text-[#00f0ff] drop-shadow-[0_0_10px_rgba(0,240,255,0.6)]">
-                    {playerData.displayName || playerData.username}
+                    {playerData.displayName || playerData.username || verifiedName}
                   </div>
                 </div>
               </div>
@@ -582,7 +594,7 @@ export default function GameDetailPage({ game, currency, onBack }) {
                         <div className="relative">
                           <img
                             src={playerData.avatar}
-                            alt={playerData.username}
+                            alt={playerData.displayName || playerData.username || 'Avatar'}
                             className="w-14 h-14 rounded-full border-2 border-emerald-400 bg-slate-900 object-cover shadow"
                           />
                           <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-[#140b2a] rounded-full"></span>
@@ -598,12 +610,12 @@ export default function GameDetailPage({ game, currency, onBack }) {
                           ឈ្មោះក្នុងហ្គេម (Game Account Name) :
                         </div>
                         <div className="text-lg sm:text-xl font-black text-[#00f0ff] tracking-wide flex items-center gap-2 drop-shadow-[0_0_8px_rgba(0,240,255,0.5)]">
-                          <span>{playerData.displayName || playerData.username}</span>
+                          <span>{playerData.displayName || playerData.username || verifiedName}</span>
                           <span className="text-emerald-400 text-sm">✓</span>
                         </div>
                         <div className="text-xs text-gray-300 mt-1 flex flex-wrap items-center gap-2">
                           {game.id === 'roblox' && (
-                            <span className="font-mono text-cyan-300">Roblox User: @{playerData.username} (ID: {playerData.userId})</span>
+                            <span className="font-mono text-cyan-300">Roblox User: @{playerData.username || userId} (ID: {playerData.userId || playerData.id})</span>
                           )}
                           {game.id === 'mobile-legends' && (
                             <span>Game ID: <strong className="text-cyan-300 font-mono">{userId}</strong> (Zone: <strong className="text-cyan-300 font-mono">{zoneId}</strong>) • តំបន់: <strong className="text-white">{playerData.country || 'Cambodia'}</strong></span>

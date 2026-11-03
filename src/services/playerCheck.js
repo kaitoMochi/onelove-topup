@@ -20,17 +20,36 @@ export async function verifyPlayer(gameId, userId, zoneId = '') {
       })
     });
 
-    const data = await res.json();
-    if (!res.ok || !data.success) {
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data || !data.success) {
       return {
         success: false,
-        error: data.error || 'រកមិនឃើញឈ្មោះអ្នកលេងទេ! សូមពិនិត្យ ID ឡើងវិញ'
+        error: (data && data.error) ? data.error : 'រកមិនឃើញឈ្មោះអ្នកលេងទេ! សូមពិនិត្យ ID ឡើងវិញ'
       };
     }
 
+    // Unpack direct player object from server response
+    const inner = data.data || data;
+    const username = inner.username || inner.displayName || inner.name || data.username || data.name || '';
+    const displayName = inner.displayName || inner.username || username;
+    const avatar = inner.avatar || data.avatar || '';
+    const id = inner.id || inner.userId || data.id || data.userId || userId.trim();
+    const country = inner.country || data.country || 'Cambodia';
+
+    const normalizedData = {
+      ...data,
+      ...inner,
+      username,
+      displayName,
+      avatar,
+      id,
+      userId: id,
+      country
+    };
+
     return {
       success: true,
-      data
+      data: normalizedData
     };
   } catch (err) {
     return {
