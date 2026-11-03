@@ -113,7 +113,7 @@ export default function GameDetailPage({ game, currency, onBack }) {
               }
             });
 
-            // 2. Weekly Pass Only (Direct Live Connection to Sora Topup API)
+            // 2. Weekly Pass (Direct Live Connection to Sora Topup API)
             const weeklyCodes = ['Weekly', '2Weekly', '3Weekly', '4Weekly', '5Weekly', '10Weekly'];
             weeklyCodes.forEach(code => {
               const found = soraData.packages.find(p => String(p.code) === code);
@@ -135,35 +135,96 @@ export default function GameDetailPage({ game, currency, onBack }) {
               }
             });
 
+            // 3. Subscriptions & Special Passes (Direct Live Connection to Sora Topup API)
+            const subCodes = [
+              { code: 'WeeklyElite', name: 'Weekly Elite Pass', icon: '/assets/diamonds/elite-pass.svg', bonus: 'Elite Rewards' },
+              { code: 'MonthlyEpic', name: 'Monthly Epic Pass', icon: '/assets/diamonds/epic-pass.svg', bonus: 'Epic Rewards' },
+              { code: 'Twilight', name: 'Twilight Pass', icon: '/assets/diamonds/twilight-pass.svg', bonus: 'Exclusive Skin' }
+            ];
+            subCodes.forEach(sub => {
+              const found = soraData.packages.find(p => String(p.code) === sub.code);
+              if (found) {
+                const price = getCustomPrice('mobile-legends', sub.code, found.price);
+                mapped.push({
+                  id: sub.code,
+                  code: sub.code,
+                  name: sub.name,
+                  section: 'subscriptions',
+                  sectionTitle: 'Subscriptions & Special Passes',
+                  category: 'subscriptions',
+                  price: price,
+                  bonus: sub.bonus,
+                  points: `+${Math.max(1, Math.round(price))} ពិន្ទុ`,
+                  img: getGameAsset('mobile-legends', 'weekly', sub.icon)
+                });
+              }
+            });
+
             setPackagesList(mapped);
             setSelectedPackage(mapped[0]);
           }
         } else {
-          // Free Fire (Diamonds only - Weekly Pass removed)
+          // Free Fire (All Live Packages from Sora: Diamonds, Weekly, Lite, Monthly, Level Up, Combos)
           const soraData = await getSoraPackages('ff');
           if (isMounted && soraData && soraData.ok && soraData.packages?.length > 0) {
-            const mapped = soraData.packages
-              .filter(pkg => {
-                const nameLower = pkg.name.toLowerCase();
-                const codeLower = String(pkg.code).toLowerCase();
-                const isWeekly = nameLower.includes('pass') || nameLower.includes('card') || nameLower.includes('membership') || nameLower.includes('lite') || nameLower.includes('lvl') || codeLower.includes('weekly') || codeLower.includes('monthly');
-                return !isWeekly;
-              })
-              .map(pkg => {
-                const price = getCustomPrice('free-fire', pkg.code, pkg.price);
-                return {
-                  id: pkg.code,
-                  code: pkg.code,
-                  name: pkg.name,
-                  section: 'diamonds',
-                  sectionTitle: 'Diamonds',
-                  category: 'diamonds',
-                  price: price,
-                  bonus: '+Bonus 💎',
-                  points: `+${Math.max(1, Math.round(price))} ពិន្ទុ`,
-                  img: getGameAsset('free-fire', 'diamond', price >= 3 ? '/assets/diamonds/ff-diamond-pack.png' : '/assets/diamonds/ff-diamond.png')
-                };
-              });
+            const mapped = soraData.packages.map(pkg => {
+              const code = String(pkg.code);
+              const codeLower = code.toLowerCase();
+              const nameLower = String(pkg.name).toLowerCase();
+              const price = getCustomPrice('free-fire', code, pkg.price);
+
+              let section = 'diamonds';
+              let sectionTitle = 'Diamonds';
+              let category = 'diamonds';
+              let img = getGameAsset('free-fire', 'diamond', price >= 3 ? '/assets/diamonds/ff-diamond-pack.png' : '/assets/diamonds/ff-diamond.png');
+              let bonus = '+Bonus 💎';
+
+              if (codeLower.includes('weeklylite')) {
+                section = 'weekly';
+                sectionTitle = 'Weekly Card & Lite';
+                category = 'weekly';
+                img = '/assets/diamonds/ff-weekly-lite.svg';
+                bonus = 'Lite Diamonds';
+              } else if (codeLower.includes('weekly') || nameLower.includes('w.card')) {
+                section = 'weekly';
+                sectionTitle = 'Weekly Card & Lite';
+                category = 'weekly';
+                img = getGameAsset('free-fire', 'weekly', '/assets/diamonds/ff-weekly-card.svg');
+                bonus = 'VIP Member';
+              } else if (codeLower.includes('monthly') || nameLower.includes('m.card')) {
+                section = 'monthly';
+                sectionTitle = 'Monthly Card';
+                category = 'monthly';
+                img = '/assets/diamonds/ff-monthly-card.svg';
+                bonus = 'Super VIP';
+              } else if (codeLower.startsWith('l') || nameLower.includes('lvup')) {
+                section = 'special';
+                sectionTitle = 'Level Up & Combos';
+                category = 'special';
+                img = '/assets/diamonds/ff-levelup.svg';
+                bonus = 'Level Up Pass';
+              } else if (codeLower.includes('mwl') || nameLower.includes('m+w+l')) {
+                section = 'special';
+                sectionTitle = 'Level Up & Combos';
+                category = 'special';
+                img = '/assets/diamonds/ff-combo.svg';
+                bonus = 'M+W+L Combo';
+              }
+
+              return {
+                id: code,
+                code: code,
+                name: pkg.name,
+                section,
+                sectionTitle,
+                category,
+                price,
+                bonus,
+                points: `+${Math.max(1, Math.round(price))} ពិន្ទុ`,
+                img
+              };
+            });
+
             setPackagesList(mapped);
             setSelectedPackage(mapped[0]);
           }
@@ -672,8 +733,8 @@ export default function GameDetailPage({ game, currency, onBack }) {
                   return pkg.section === activeCategory || pkg.category === activeCategory;
                 });
 
-                // Group by section maintaining order: diamonds -> weekly
-                const secOrder = ['diamonds', 'weekly'];
+                // Group by section maintaining order: diamonds -> weekly -> monthly -> subscriptions -> special
+                const secOrder = ['diamonds', 'weekly', 'monthly', 'subscriptions', 'special'];
                 const groups = {};
                 visible.forEach(pkg => {
                   const s = pkg.section || 'diamonds';
@@ -742,7 +803,7 @@ export default function GameDetailPage({ game, currency, onBack }) {
                               !customDiamond.includes('robux-gold.svg');
 
                             if (isWeeklyPass) {
-                              packageIcon = hasCustomWeekly ? customWeekly : (pkg.img || '/assets/diamonds/mlbb-weekly-pass.svg');
+                              packageIcon = hasCustomWeekly ? customWeekly : (pkg.img || (game?.id === 'free-fire' ? '/assets/diamonds/ff-weekly-card.svg' : '/assets/diamonds/mlbb-weekly-pass.svg'));
                             } else {
                               packageIcon = hasCustomDiamond ? customDiamond : (pkg.img || (game?.id === 'free-fire' ? '/assets/diamonds/ff-diamond.png' : game?.id === 'roblox' ? '/assets/diamonds/robux-gold.svg' : '/assets/diamonds/mlbb-diamond.png'));
                             }
@@ -764,7 +825,9 @@ export default function GameDetailPage({ game, currency, onBack }) {
                                     className="w-full h-full object-contain"
                                     onError={(e) => {
                                       e.target.onerror = null;
-                                      e.target.src = isWeeklyPass ? '/assets/diamonds/mlbb-weekly-pass.svg' : '/assets/diamonds/mlbb-diamond.png';
+                                      e.target.src = isWeeklyPass 
+                                        ? (game?.id === 'free-fire' ? '/assets/diamonds/ff-weekly-card.svg' : '/assets/diamonds/mlbb-weekly-pass.svg') 
+                                        : (game?.id === 'roblox' ? '/assets/diamonds/robux-gold.svg' : '/assets/diamonds/mlbb-diamond.png');
                                     }}
                                   />
                                 </div>

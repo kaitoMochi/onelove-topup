@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="ffWeeklyBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7" />
+      <stop offset="50%" stop-color="#0369a1" />
+      <stop offset="100%" stop-color="#082f49" />
+    </linearGradient>
+    <linearGradient id="ffWeeklyBorder" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="50%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#00f0ff" />
+    </linearGradient>
+    <linearGradient id="diamondCyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e0f2fe" />
+      <stop offset="40%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+    <filter id="ffGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <circle cx="64" cy="64" r="50" fill="#0284c7" opacity="0.3" filter="url(#ffGlow)" />
+
+  <g transform="rotate(-3 64 64)">
+    <rect x="20" y="24" width="88" height="80" rx="14" fill="url(#ffWeeklyBg)" stroke="url(#ffWeeklyBorder)" stroke-width="2.5" filter="url(#ffGlow)" />
+    <rect x="24" y="28" width="80" height="72" rx="10" fill="none" stroke="#7dd3fc" stroke-width="1" stroke-dasharray="3 2" opacity="0.75" />
+    
+    <!-- Free Fire Flame & Diamond Emblem -->
+    <g transform="translate(64, 56)">
+      <!-- Flame backdrop -->
+      <path d="M0,-20 C6,-12 16,-8 14,8 C12,18 2,22 0,22 C-2,22 -12,18 -14,8 C-16,-8 -6,-12 0,-20 Z" fill="#f97316" opacity="0.85" filter="url(#ffGlow)" />
+      <path d="M0,-14 C4,-8 10,-4 9,6 C8,13 1,16 0,16 C-1,16 -8,13 -9,6 C-10,-4 -4,-8 0,-14 Z" fill="#fbbf24" />
+      <!-- Diamond inside -->
+      <polygon points="0,-8 9,-2 0,9 -9,-2" fill="url(#diamondCyan)" stroke="#ffffff" stroke-width="1.2" filter="url(#ffGlow)" />
+      <polygon points="0,-8 9,-2 0,0" fill="#ffffff" opacity="0.6" />
+    </g>
+
+    <rect x="30" y="86" width="68" height="13" rx="6.5" fill="#0284c7" stroke="#38bdf8" stroke-width="1" />
+    <text x="64" y="95.5" font-family="'Poppins', sans-serif, Arial" font-size="7" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="0.5">WEEKLY CARD</text>
+  </g>
+</svg>

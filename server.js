@@ -358,16 +358,35 @@ app.post('/api/orders/create', async (req, res) => {
         packageName = found.name;
       }
     } else if (game === 'roblox' || game === 'robux') {
-      const robuxPrices = {
-        'rbx-80': 0.99,
-        'rbx-400': 4.80,
-        'rbx-800': 9.30,
-        'rbx-1700': 18.90,
-        'rbx-4500': 47.00,
-        'rbx-10000': 98.00
-      };
-      officialPrice = robuxPrices[packageCode] || 0.99;
-      packageName = `${packageCode} Robux`;
+      try {
+        const soraRobuxRes = await fetch(`${SORA_CONFIG.baseUrl}/robux/catalogue`, {
+          headers: { 'Authorization': `Bearer ${SORA_CONFIG.apiKey}` }
+        });
+        const soraRobuxData = await soraRobuxRes.json();
+        const found = soraRobuxData.items?.find(p => String(p.cardId) === String(packageCode));
+        if (found) {
+          officialPrice = Number(found.priceUsd);
+          packageName = found.name;
+        }
+      } catch (e) {}
+
+      if (!officialPrice) {
+        const defaultRobuxPrices = {
+          '100_robux': 1.78,
+          '275_robux': 2.75,
+          '360_robux': 3.60,
+          '555_robux': 5.48,
+          '1000_robux': 9.40,
+          '2500_robux': 23.86,
+          '5250_robux': 48.11,
+          '11000_robux': 95.90,
+          '50000_idr': 2.79,
+          '65000_idr': 3.72,
+          '100000_idr': 5.50
+        };
+        officialPrice = defaultRobuxPrices[packageCode] || 1.78;
+        packageName = `${packageCode} Robux`;
+      }
     }
 
     const currentSettings = getSavedSettings();

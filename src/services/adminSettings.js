@@ -12,6 +12,7 @@ const DEFAULT_SETTINGS = {
     'free-fire': {
       coverImage: '/games/free-fire-cover.jpg',
       diamondIcon: '/assets/diamonds/ff-diamond.png',
+      weeklyPassIcon: '/assets/diamonds/ff-weekly-card.svg',
       diamondPackIcon: '/assets/diamonds/ff-diamond-pack.png',
       customTitle: 'Free Fire Mobile'
     },

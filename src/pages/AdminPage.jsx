@@ -80,10 +80,29 @@ export default function AdminPage({ onBack }) {
       const prof = await getSoraProfile();
       if (prof.ok) setProfile(prof);
 
-      const code = gameId === 'mobile-legends' ? 'ml' : (gameId === 'free-fire' ? 'ff' : null);
-      if (code) {
-        const pkgs = await getSoraPackages(code);
+      if (gameId === 'mobile-legends') {
+        const pkgs = await getSoraPackages('ml');
         if (pkgs.ok) setSoraPackages(pkgs.packages || []);
+      } else if (gameId === 'free-fire') {
+        const pkgs = await getSoraPackages('ff');
+        if (pkgs.ok) setSoraPackages(pkgs.packages || []);
+      } else if (gameId === 'roblox') {
+        const rbx = await getSoraRobux();
+        if (rbx.ok && rbx.items) {
+          const mappedRbx = rbx.items.map(item => ({
+            id: item.cardId,
+            code: item.cardId,
+            name: item.name,
+            price: Number(item.priceUsd),
+            section: 'diamonds',
+            sectionTitle: 'Digital Robux Codes',
+            category: 'diamonds',
+            img: '/assets/diamonds/robux-gold.svg'
+          }));
+          setSoraPackages(mappedRbx);
+        } else {
+          setSoraPackages([]);
+        }
       } else {
         setSoraPackages([]);
       }
@@ -237,7 +256,7 @@ export default function AdminPage({ onBack }) {
           ...settings.games[selectedGame],
           coverImage: coverUrl.trim(),
           diamondIcon: diamondUrl.trim(),
-          ...(selectedGame === 'mobile-legends' ? { weeklyPassIcon: weeklyUrl.trim() } : {})
+          ...(selectedGame !== 'roblox' ? { weeklyPassIcon: weeklyUrl.trim() } : {})
         }
       },
       customPrices: {
@@ -282,9 +301,11 @@ export default function AdminPage({ onBack }) {
     if (selectedGame === 'free-fire') {
       defaultCover = '/games/free-fire-cover.jpg';
       defaultDiamond = '/assets/diamonds/ff-diamond.png';
+      defaultWeekly = '/assets/diamonds/ff-weekly-card.svg';
     } else if (selectedGame === 'roblox') {
       defaultCover = '/games/roblox-cover.jpg';
       defaultDiamond = '/assets/diamonds/robux-gold.svg';
+      defaultWeekly = '';
     }
 
     setCoverUrl(defaultCover);
@@ -293,9 +314,22 @@ export default function AdminPage({ onBack }) {
     setCustomPrices({});
   };
 
-  // Get current game's static packages for price editor
+  // Get current game's static and live packages for price editor
   const currentGameObj = GAMES.find(g => g.id === selectedGame) || GAMES[0];
-  const allGamePackages = currentGameObj.packages || [];
+  const allGamePackages = (soraPackages && soraPackages.length > 0)
+    ? soraPackages.map(sp => {
+        const staticMatch = currentGameObj.packages?.find(p => String(p.code) === String(sp.code || sp.id));
+        return {
+          id: sp.code || sp.id,
+          code: sp.code || sp.id,
+          name: staticMatch?.name || sp.name,
+          section: staticMatch?.section || (String(sp.code).toLowerCase().includes('weekly') ? 'weekly' : 'diamonds'),
+          sectionTitle: staticMatch?.sectionTitle || (String(sp.code).toLowerCase().includes('weekly') ? 'Weekly Pass' : 'Diamonds'),
+          price: sp.price !== undefined ? sp.price : (staticMatch?.price || 0),
+          img: staticMatch?.img || (selectedGame === 'roblox' ? '/assets/diamonds/robux-gold.svg' : (selectedGame === 'free-fire' ? '/assets/diamonds/ff-diamond.png' : '/assets/diamonds/mlbb-diamond.png'))
+        };
+      })
+    : (currentGameObj.packages || []);
 
   if (!isAuthenticated) {
     return (
@@ -615,29 +649,37 @@ export default function AdminPage({ onBack }) {
                 </label>
               </div>
 
-              {/* 2. WEEKLY PASS LOGO (ONLY FOR MOBILE LEGENDS, REMOVED FOR FREE FIRE & ROBLOX) */}
-              {selectedGame === 'mobile-legends' && (
+              {/* 2. WEEKLY PASS & MEMBERSHIP LOGO (FOR MOBILE LEGENDS & FREE FIRE) */}
+              {selectedGame !== 'roblox' && (
                 <div className="p-4 rounded-xl bg-[#0e041d] border border-purple-500/30 space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
                       <label className="text-xs font-black text-purple-300 uppercase tracking-wider flex items-center gap-1.5">
                         <span>🎟️</span>
-                        <span>រូបតំណាង WEEKLY PASS & សមាជិកភាព</span>
+                        <span>
+                          {selectedGame === 'free-fire' 
+                            ? 'រូបតំណាង WEEKLY & MEMBERSHIP CARD' 
+                            : 'រូបតំណាង WEEKLY PASS & សមាជិកភាព'}
+                        </span>
                       </label>
                       <p className="text-[11px] text-gray-400 mt-0.5">
-                        បង្ហាញលើកញ្ចប់ Weekly Diamond Pass, Elite, Twilight Pass
+                        {selectedGame === 'free-fire'
+                          ? 'បង្ហាញលើកញ្ចប់ Weekly Card, Monthly Card, Weekly Lite'
+                          : 'បង្ហាញលើកញ្ចប់ Weekly Diamond Pass, Elite, Twilight Pass'}
                       </p>
                     </div>
                     {/* Live Preview */}
                     <div className="w-14 h-14 rounded-xl bg-black/60 border border-purple-400/50 flex items-center justify-center p-1.5 shadow-[0_0_12px_rgba(168,85,247,0.3)]">
                       <img 
                         key={weeklyUrl}
-                        src={weeklyUrl && !weeklyUrl.includes('pass-card.png') ? weeklyUrl : '/assets/diamonds/mlbb-weekly-pass.svg'} 
+                        src={weeklyUrl && !weeklyUrl.includes('pass-card.png') 
+                          ? weeklyUrl 
+                          : (selectedGame === 'free-fire' ? '/assets/diamonds/ff-weekly-card.svg' : '/assets/diamonds/mlbb-weekly-pass.svg')} 
                         alt="Pass Preview" 
                         className="w-full h-full object-contain"
                         onError={(e) => {
                           e.target.onerror = null;
-                          e.target.src = '/assets/diamonds/mlbb-weekly-pass.svg';
+                          e.target.src = selectedGame === 'free-fire' ? '/assets/diamonds/ff-weekly-card.svg' : '/assets/diamonds/mlbb-weekly-pass.svg';
                         }}
                       />
                     </div>
@@ -645,7 +687,7 @@ export default function AdminPage({ onBack }) {
 
                   <label className={`w-full py-3 px-4 rounded-xl bg-purple-900/60 hover:bg-purple-800/80 border border-purple-400/40 text-purple-200 text-xs font-bold cursor-pointer flex items-center justify-center gap-2 shadow-md transition-all ${isUploadingWeekly ? 'opacity-70 pointer-events-none' : ''}`}>
                     <span>{isUploadingWeekly ? '⏳' : '📷'}</span>
-                    <span>{isUploadingWeekly ? 'កំពុងដំណើរការ Upload Weekly Pass...' : 'Upload រូប Weekly Pass ពីទូរស័ព្ទ / PC'}</span>
+                    <span>{isUploadingWeekly ? 'កំពុងដំណើរការ Upload...' : (selectedGame === 'free-fire' ? 'Upload រូប Membership Card ពីទូរស័ព្ទ / PC' : 'Upload រូប Weekly Pass ពីទូរស័ព្ទ / PC')}</span>
                     <input 
                       type="file" 
                       accept="image/*" 
@@ -728,8 +770,10 @@ export default function AdminPage({ onBack }) {
                     String(pkg.code).toLowerCase().includes('weekly');
 
                   const displayPackageIcon = isPkgWeekly
-                    ? (weeklyUrl && !weeklyUrl.includes('pass-card.png') ? weeklyUrl : '/assets/diamonds/mlbb-weekly-pass.svg')
-                    : (diamondUrl || (selectedGame === 'roblox' ? '/assets/diamonds/robux-gold.svg' : '/assets/diamonds/mlbb-diamond.png'));
+                    ? (weeklyUrl && !weeklyUrl.includes('pass-card.png') 
+                        ? weeklyUrl 
+                        : (pkg.img || (selectedGame === 'free-fire' ? '/assets/diamonds/ff-weekly-card.svg' : '/assets/diamonds/mlbb-weekly-pass.svg')))
+                    : (diamondUrl || pkg.img || (selectedGame === 'roblox' ? '/assets/diamonds/robux-gold.svg' : (selectedGame === 'free-fire' ? '/assets/diamonds/ff-diamond.png' : '/assets/diamonds/mlbb-diamond.png')));
 
                   return (
                     <div 
