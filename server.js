@@ -34,6 +34,19 @@ function getPaylinkEndpoint(subpath) {
   return `${base}/${clean}`;
 }
 
+function sanitizeBakongKHQR(qrStr) {
+  if (!qrStr || typeof qrStr !== 'string') return qrStr;
+  let fixed = qrStr;
+  // Fix Paylink merchant ID suffix typo (onelo@bkrtONE -> onelo@bkrt)
+  if (fixed.includes('29170013onelo@bkrtONE')) {
+    fixed = fixed.replace('29170013onelo@bkrtONE', '29140010onelo@bkrt');
+    const dataWithoutCrc = fixed.slice(0, -4);
+    const newCrc = crc16(dataWithoutCrc);
+    return dataWithoutCrc + newCrc;
+  }
+  return fixed;
+}
+
 const SORA_CONFIG = {
   baseUrl: process.env.SORA_BASE_URL || 'https://app.soratopup.com/api/v1',
   apiKey: process.env.SORA_API_KEY || 'sk_7fbe263e907ce46212397f6746d4cd5c7bb65c0932ef666f'
@@ -618,8 +631,8 @@ app.post('/api/orders/create', async (req, res) => {
       });
       const paylinkData = await paylinkRes.json();
       if (paylinkRes.ok && paylinkData.success && paylinkData.qrString) {
-        qrString = paylinkData.qrString;
-        deepLink = paylinkData.deepLink || paylinkData.deeplink;
+        qrString = sanitizeBakongKHQR(paylinkData.qrString);
+        deepLink = `bakong://qr?data=${encodeURIComponent(qrString)}`;
         if (paylinkData.tranId) billNumber = paylinkData.tranId;
       }
     } catch (e) { }

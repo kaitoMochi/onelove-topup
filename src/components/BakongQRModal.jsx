@@ -13,13 +13,13 @@ export default function BakongQRModal({ paymentData, playerInfo, orderResult, cu
     if (!paymentData?.qrString) return;
 
     QRCode.toDataURL(paymentData.qrString, {
-      width: 320,
-      margin: 1,
+      width: 340,
+      margin: 2,
       color: {
-        dark: '#0f172a',
+        dark: '#000000',
         light: '#ffffff',
       },
-      errorCorrectionLevel: 'M',
+      errorCorrectionLevel: 'H',
     })
       .then((url) => setQrDataUrl(url))
       .catch((err) => console.error('QR generation error:', err));
@@ -238,9 +238,9 @@ export default function BakongQRModal({ paymentData, playerInfo, orderResult, cu
                       alt="Bakong KHQR" 
                       className="w-56 h-56 sm:w-60 sm:h-60 object-contain"
                     />
-                    {/* Centered Brand Mascot Logo */}
+                    {/* Centered Brand Mascot Logo - Compact & 100% Scan Safe */}
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <div className="w-12 h-12 bg-white rounded-full p-1 shadow-md border border-cyan-400 overflow-hidden">
+                      <div className="w-8 h-8 bg-white rounded-full p-0.5 shadow-md border border-[#E11E26] overflow-hidden">
                         <img src="/logo.jpg" alt="Logo" className="w-full h-full object-cover rounded-full" />
                       </div>
                     </div>
@@ -259,15 +259,26 @@ export default function BakongQRModal({ paymentData, playerInfo, orderResult, cu
                 <span>Waiting for your transfer...</span>
               </div>
 
-              {/* Deep link button (for mobile users with Bakong app) */}
-              {paymentData?.deepLink && (
-                <a
-                  href={paymentData.deepLink}
-                  className="mt-3 w-full py-2.5 px-4 rounded-xl bg-[#E11E26] text-white font-bold text-xs uppercase tracking-wider shadow hover:bg-[#c91820] active:scale-98 transition-all flex items-center justify-center gap-2"
-                >
-                  <span>📲 Open in Bakong / Banking App</span>
-                </a>
-              )}
+              {/* Mobile Actions: Deep Link & Download QR */}
+              <div className="mt-3 w-full flex flex-col sm:flex-row gap-2">
+                {paymentData?.deepLink && (
+                  <a
+                    href={paymentData.deepLink}
+                    className="flex-1 py-2.5 px-3 rounded-xl bg-[#E11E26] text-white font-bold text-xs uppercase tracking-wider shadow hover:bg-[#c91820] active:scale-98 transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <span>📲 Open in Bank</span>
+                  </a>
+                )}
+                {qrDataUrl && (
+                  <a
+                    href={qrDataUrl}
+                    download={`bakong_khqr_${paymentData?.tranId?.slice(-6) || 'pay'}.png`}
+                    className="flex-1 py-2.5 px-3 rounded-xl bg-purple-900/80 hover:bg-purple-800/90 border border-purple-400/40 text-purple-200 font-bold text-xs tracking-wider shadow active:scale-98 transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <span>📥 Save QR</span>
+                  </a>
+                )}
+              </div>
 
               {/* Transaction details & copy */}
               <div className="mt-3 w-full pt-3 border-t border-purple-500/20 flex items-center justify-between text-[11px] text-gray-400">
