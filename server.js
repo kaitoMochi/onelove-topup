@@ -17,12 +17,22 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 const PAYLINK_CONFIG = {
-  baseUrl: process.env.PAYLINK_BASE_URL || 'https://paylinkapi-bot.onrender.com',
-  apiKey: process.env.PAYLINK_API_KEY || 'plk_live_std_af901733065f27b5608e3c198026bfe6f23d',
-  secret: process.env.PAYLINK_SECRET || 'whsec_4074c0b74b3d64a19de5c3f27f5bf022e75e593bfeb5e1955bb69bff212d3cb3',
+  baseUrl: process.env.PAYLINK_BASE_URL || 'https://paylinkapibank.com/api/v2',
+  apiKey: process.env.PAYLINK_API_KEY || 'plk_live_std_8c1b07e56227e46b7f0dfa6bcb1dbc30a951',
+  secret: process.env.PAYLINK_SECRET || 'whsec_5c042e0619885587c3925fe770d3534404064fe652c467d8d82a89e0c9bd67f8',
   storeName: process.env.STORE_NAME || 'ONE LOVE TOPUP',
   bakongId: process.env.BAKONG_ID || 'onelo@bkrt',
 };
+
+function getPaylinkEndpoint(subpath) {
+  const base = (PAYLINK_CONFIG.baseUrl || 'https://paylinkapibank.com/api/v2').replace(/\/+$/, '');
+  const clean = subpath.replace(/^\/+/, '');
+  if (base.includes('/api/v2')) {
+    const withoutApi = clean.replace(/^api\//, '');
+    return `${base}/${withoutApi}`;
+  }
+  return `${base}/${clean}`;
+}
 
 const SORA_CONFIG = {
   baseUrl: process.env.SORA_BASE_URL || 'https://app.soratopup.com/api/v1',
@@ -595,7 +605,7 @@ app.post('/api/orders/create', async (req, res) => {
     let billNumber = tranId;
 
     try {
-      const paylinkRes = await fetch(`${PAYLINK_CONFIG.baseUrl}/api/bakong/generate-qr`, {
+      const paylinkRes = await fetch(getPaylinkEndpoint('bakong/generate-qr'), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${PAYLINK_CONFIG.apiKey}`,
@@ -681,7 +691,7 @@ app.post('/api/orders/verify-and-dispatch', async (req, res) => {
 
     let isPaid = false;
     try {
-      const payRes = await fetch(`${PAYLINK_CONFIG.baseUrl}/api/payment/check`, {
+      const payRes = await fetch(getPaylinkEndpoint('payment/check'), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${PAYLINK_CONFIG.apiKey}`,
@@ -819,7 +829,7 @@ app.post('/api/bakong/generate-qr', async (req, res) => {
 app.post('/api/payment/check', async (req, res) => {
   try {
     const { tranId } = req.body || {};
-    const response = await fetch(`${PAYLINK_CONFIG.baseUrl}/api/payment/check`, {
+    const response = await fetch(getPaylinkEndpoint('payment/check'), {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${PAYLINK_CONFIG.apiKey}`,
