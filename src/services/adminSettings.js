@@ -303,7 +303,9 @@ export async function uploadAdminAsset(dataUrl, type = 'asset') {
   }
 
   try {
-    const token = typeof window !== 'undefined' ? (sessionStorage.getItem('onelove_admin_token') || '') : '';
+    const token = typeof window !== 'undefined'
+      ? (sessionStorage.getItem('onelove_admin_token') || localStorage.getItem('onelove_admin_token') || '')
+      : '';
     const res = await fetch('/api/admin/upload', {
       method: 'POST',
       headers: {

@@ -54,8 +54,8 @@ export default function GameDetailPage({ game, currency, onBack }) {
     }
   };
 
-  // Live stock evaluation: If balance <= 0 or balance < selected package price, diamonds are out of stock!
-  const isOutOfStock = resellerBalance !== null && (resellerBalance <= 0 || (selectedPackage && resellerBalance < selectedPackage.price));
+  // In Stock 24/7 - customers can purchase anytime without artificial blocks
+  const isOutOfStock = false;
 
   // Sync with live Sora Topup API packages & categorize them
   useEffect(() => {
@@ -661,67 +661,31 @@ export default function GameDetailPage({ game, currency, onBack }) {
           </div>
 
           {/* Real-time Game Stock Status */}
-          {resellerBalance !== null && (
-            isOutOfStock ? (
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-red-950/95 via-[#280c17] to-purple-950/90 border-2 border-red-500/80 text-red-200 text-xs sm:text-sm shadow-[0_0_25px_rgba(239,68,68,0.3)] flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fadeIn">
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-2xl bg-red-500/20 border-2 border-red-500/60 flex items-center justify-center text-red-400 text-2xl font-bold shrink-0 shadow">
-                    🚫
+          <div className="mt-4">
+            <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-emerald-950/90 via-[#0d2a23] to-purple-950/80 border-2 border-emerald-500/70 text-emerald-200 text-xs sm:text-sm shadow-[0_0_20px_rgba(16,185,129,0.25)] flex items-center justify-between gap-3 animate-fadeIn">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center text-emerald-300 text-lg font-black shrink-0 shadow">
+                  ✓
+                </div>
+                <div>
+                  <div className="font-extrabold text-emerald-300 text-sm sm:text-base flex flex-wrap items-center gap-2">
+                    <span>មានស្តុកពេញលេញ (In Stock 24/7) — អាចទិញបានភ្លាមៗ</span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                      READY TO BUY ✓
+                    </span>
                   </div>
-                  <div>
-                    <div className="font-extrabold text-red-400 text-sm sm:text-base flex flex-wrap items-center gap-2">
-                      <span>ពេជ្រដាច់ស្តុកបណ្តោះអាសន្ន (Game Out of Stock Right Now)</span>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-red-500/25 text-red-300 border border-red-500/40">
-                        OUT OF STOCK
-                      </span>
-                    </div>
-                    <div className="text-xs text-red-200/90 mt-0.5">
-                      សូមអភ័យទោស ហ្គេមនេះកំពុងដាច់ស្តុកបណ្តោះអាសន្ន សូមរង់ចាំការបញ្ចូលស្តុកថ្មីក្នុងពេលឆាប់ៗនេះ (Game is temporarily out of stock. Please check back soon!)
-                    </div>
+                  <div className="text-[11px] text-gray-300 mt-0.5">
+                    ប្រព័ន្ធស្វ័យប្រវត្ត 24/7 • បញ្ចូលរហ័សទាន់ចិត្តតាមរយៈ Bakong KHQR (0% Fee)
                   </div>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={checkResellerStock}
-                  disabled={isCheckingStock}
-                  className="self-start sm:self-center px-4 py-2 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-200 border border-red-500/40 font-bold text-xs shrink-0 transition-all active:scale-95 flex items-center gap-1.5"
-                >
-                  <span className={isCheckingStock ? 'animate-spin' : ''}>🔄</span>
-                  <span>{isCheckingStock ? 'កំពុងពិនិត្យ...' : 'ពិនិត្យស្តុកឡើងវិញ'}</span>
-                </button>
               </div>
-            ) : (
-              <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-emerald-950/90 via-[#0d2a23] to-purple-950/80 border-2 border-emerald-500/70 text-emerald-200 text-xs sm:text-sm shadow-[0_0_20px_rgba(16,185,129,0.25)] flex items-center justify-between gap-3 animate-fadeIn">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center text-emerald-300 text-lg font-black shrink-0 shadow">
-                    ✓
-                  </div>
-                  <div>
-                    <div className="font-extrabold text-emerald-300 text-sm sm:text-base flex flex-wrap items-center gap-2">
-                      <span>មានស្តុកពេញលេញ (In Stock) — អាចទិញបានឥឡូវនេះ</span>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                        READY TO PAY ✓
-                      </span>
-                    </div>
-                    <div className="text-[11px] text-gray-300 mt-0.5">
-                      ប្រព័ន្ធស្វ័យប្រវត្ត 24/7 • បញ្ចូលភ្លាមៗក្នុងរយៈពេល 1-3 នាទី (Instant Delivery 24/7)
-                    </div>
-                  </div>
-                </div>
 
-                <button
-                  type="button"
-                  onClick={checkResellerStock}
-                  disabled={isCheckingStock}
-                  className="px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 font-bold text-xs shrink-0 transition-all active:scale-95 flex items-center gap-1"
-                >
-                  <span className={isCheckingStock ? 'animate-spin' : ''}>🔄</span>
-                  <span>Refresh</span>
-                </button>
+              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>Active 24/7</span>
               </div>
-            )
-          )}
+            </div>
+          </div>
 
           {/* Step 2: Select Diamond Package */}
           <div className="topup-card overflow-hidden">
@@ -798,7 +762,6 @@ export default function GameDetailPage({ game, currency, onBack }) {
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
                           {sec.items.map(pkg => {
                             const isSelected = selectedPackage?.id === pkg.id;
-                            const isPkgOutOfStock = resellerBalance !== null && (resellerBalance <= 0 || resellerBalance < pkg.price);
 
                             const pkgName = String(pkg?.name || '').toLowerCase();
                             const pkgCode = String(pkg?.code || '').toLowerCase();
@@ -823,7 +786,7 @@ export default function GameDetailPage({ game, currency, onBack }) {
                                 className={`package-item-card relative flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-transform duration-150 ${isSelected
                                     ? 'bg-[#1d0e37] border-2 border-cyan-400 shadow-[0_0_15px_rgba(0,240,255,0.35)] scale-[1.01]'
                                     : 'bg-[#150a28] hover:bg-[#1a0d33] border border-purple-500/25 hover:border-purple-400/40 shadow-sm'
-                                  } ${isPkgOutOfStock ? 'opacity-65' : ''}`}
+                                  }`}
                               >
                                 {/* Left: Diamond / Pass Icon */}
                                 <div className="w-10 h-10 sm:w-11 sm:h-11 flex-shrink-0 flex items-center justify-center p-0.5 bg-black/30 rounded-xl border border-purple-500/20">
@@ -852,15 +815,6 @@ export default function GameDetailPage({ game, currency, onBack }) {
                                 {pkg.topTag && (
                                   <div className="absolute top-2 right-2 text-[10px] font-bold text-pink-300 bg-pink-950/80 px-2 py-0.5 rounded-full border border-pink-500/40 shadow-sm">
                                     {pkg.topTag}
-                                  </div>
-                                )}
-
-                                {/* Out of Stock Overlay */}
-                                {isPkgOutOfStock && (
-                                  <div className="absolute top-2 right-2 z-10">
-                                    <span className="px-1.5 py-0.5 rounded bg-red-600/90 text-white font-black text-[9px] uppercase tracking-wider shadow">
-                                      ដាច់ស្តុក
-                                    </span>
                                   </div>
                                 )}
                               </div>
@@ -942,36 +896,24 @@ export default function GameDetailPage({ game, currency, onBack }) {
             </div>
           </div>
 
-          {isOutOfStock ? (
-            <button
-              type="button"
-              disabled={true}
-              className="flex-shrink-0 px-4 sm:px-8 py-2.5 sm:py-3 rounded-full bg-red-950/90 text-red-300 font-extrabold text-[11px] sm:text-sm shadow border border-red-500/50 cursor-not-allowed flex items-center gap-1.5 sm:gap-2 opacity-90"
-              title="ពេជ្រដាច់ស្តុកបណ្តោះអាសន្ន មិនអាចបង់ប្រាក់បានទេ"
-            >
-              <span>🚫</span>
-              <span>ដាច់ស្តុក (Cannot Pay)</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleCheckout}
-              disabled={isGeneratingQR}
-              className="flex-shrink-0 px-5 sm:px-10 py-2.5 sm:py-3 rounded-full bg-gradient-to-r from-purple-600 via-fuchsia-600 to-cyan-500 hover:brightness-110 active:scale-95 text-white font-extrabold text-xs sm:text-base shadow-[0_0_20px_rgba(0,240,255,0.4)] transition-all flex items-center gap-1.5 sm:gap-2 disabled:opacity-60 border border-cyan-300/40"
-            >
-              {isGeneratingQR ? (
-                <>
-                  <span className="animate-spin">⏳</span>
-                  <span>កំពុងដំណើរការ...</span>
-                </>
-              ) : (
-                <>
-                  <span>បង់ ឥឡូវ (Buy Now)</span>
-                  <span>→</span>
-                </>
-              )}
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={handleCheckout}
+            disabled={isGeneratingQR}
+            className="flex-shrink-0 px-5 sm:px-10 py-2.5 sm:py-3 rounded-full bg-gradient-to-r from-purple-600 via-fuchsia-600 to-cyan-500 hover:brightness-110 active:scale-95 text-white font-extrabold text-xs sm:text-base shadow-[0_0_20px_rgba(0,240,255,0.4)] transition-all flex items-center gap-1.5 sm:gap-2 disabled:opacity-60 border border-cyan-300/40 cursor-pointer"
+          >
+            {isGeneratingQR ? (
+              <>
+                <span className="animate-spin">⏳</span>
+                <span>កំពុងដំណើរការ...</span>
+              </>
+            ) : (
+              <>
+                <span>បង់ ឥឡូវ (Buy Now)</span>
+                <span>→</span>
+              </>
+            )}
+          </button>
 
         </div>
       </div>

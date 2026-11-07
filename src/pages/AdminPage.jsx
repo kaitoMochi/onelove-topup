@@ -39,7 +39,10 @@ export default function AdminPage({ onBack }) {
       }
     });
 
-    if (typeof window !== 'undefined' && sessionStorage.getItem('onelove_admin_token')) {
+    const savedToken = typeof window !== 'undefined'
+      ? (sessionStorage.getItem('onelove_admin_token') || localStorage.getItem('onelove_admin_token'))
+      : null;
+    if (savedToken) {
       setIsAuthenticated(true);
       loadSoraData(selectedGame);
     }
@@ -223,6 +226,7 @@ export default function AdminPage({ onBack }) {
       if (res.ok && data.success) {
         if (typeof window !== 'undefined' && data.token) {
           sessionStorage.setItem('onelove_admin_token', data.token);
+          localStorage.setItem('onelove_admin_token', data.token);
         }
         setIsAuthenticated(true);
         loadSoraData(selectedGame);
@@ -416,6 +420,7 @@ export default function AdminPage({ onBack }) {
   const handleLogout = () => {
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('onelove_admin_token');
+      localStorage.removeItem('onelove_admin_token');
     }
     setIsAuthenticated(false);
     setAuthStep('pin');

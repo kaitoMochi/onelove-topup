@@ -250,6 +250,19 @@ async function seedSettingsIfEmpty() {
       );
       console.log('🌱 [MySQL] Successfully seeded initial admin settings into database.');
     }
+
+    // Auto-migrate any local media uploads into MySQL
+    if (memoryMedia.size > 0) {
+      for (const [filename, item] of memoryMedia.entries()) {
+        try {
+          await pool.query(
+            'INSERT IGNORE INTO media_uploads (filename, mime_type, data_base64) VALUES (?, ?, ?)',
+            [filename, item.mimeType || 'image/png', item.base64]
+          );
+        } catch (_) { }
+      }
+      console.log(`📦 [MySQL] Migrated ${memoryMedia.size} local uploaded assets into MySQL media_uploads.`);
+    }
   } catch (err) {
     console.warn('⚠️ [MySQL] Seed check warning:', err.message);
   }
@@ -591,8 +604,34 @@ export async function verifyAndConsumeOtp(otp) {
   return valid;
 }
 
-// --- MEDIA UPLOADS (Permanent storage of uploaded logos & covers in MySQL) ---
+// --- MEDIA UPLOADS (Permanent storage of uploaded logos & covers in MySQL + Local JSON Fallback) ---
+const MEDIA_FILE = path.resolve(__dirname, 'media-uploads.json');
+const memoryMedia = new Map();
+
+// Load any existing media from local file on boot
+try {
+  if (fs.existsSync(MEDIA_FILE)) {
+    const rawMedia = JSON.parse(fs.readFileSync(MEDIA_FILE, 'utf8'));
+    for (const [k, v] of Object.entries(rawMedia || {})) {
+      memoryMedia.set(k, v);
+    }
+  }
+} catch (e) { }
+
+function persistMediaFile() {
+  try {
+    const obj = {};
+    for (const [k, v] of memoryMedia.entries()) {
+      obj[k] = v;
+    }
+    fs.writeFileSync(MEDIA_FILE, JSON.stringify(obj), 'utf8');
+  } catch (e) { }
+}
+
 export async function saveMedia(filename, mimeType, base64Data) {
+  memoryMedia.set(filename, { mimeType, base64: base64Data });
+  persistMediaFile();
+
   if (pool && isConnected) {
     try {
       await pool.query(
@@ -604,10 +643,16 @@ export async function saveMedia(filename, mimeType, base64Data) {
       console.warn('⚠️ [MySQL] saveMedia error:', e.message);
     }
   }
-  return false;
+  return true;
 }
 
 export async function getMedia(filename) {
+  // 1. Check in-memory first
+  if (memoryMedia.has(filename)) {
+    return memoryMedia.get(filename);
+  }
+
+  // 2. Check MySQL if connected
   if (pool && isConnected) {
     try {
       const [rows] = await pool.query(
@@ -615,15 +660,29 @@ export async function getMedia(filename) {
         [filename]
       );
       if (rows.length > 0) {
-        return {
+        const item = {
           mimeType: rows[0].mime_type,
           base64: rows[0].data_base64
         };
+        memoryMedia.set(filename, item);
+        return item;
       }
     } catch (e) {
       console.warn('⚠️ [MySQL] getMedia error:', e.message);
     }
   }
+
+  // 3. Check local file fallback
+  try {
+    if (fs.existsSync(MEDIA_FILE)) {
+      const raw = JSON.parse(fs.readFileSync(MEDIA_FILE, 'utf8'));
+      if (raw && raw[filename]) {
+        memoryMedia.set(filename, raw[filename]);
+        return raw[filename];
+      }
+    }
+  } catch (e) { }
+
   return null;
 }
 

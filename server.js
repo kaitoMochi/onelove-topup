@@ -582,11 +582,9 @@ app.post('/api/orders/create', async (req, res) => {
       return res.status(400).json({ success: false, error: 'រកមិនឃើញកញ្ចប់ពេជ្រនេះទេ (Invalid Package)' });
     }
 
+    // If reseller balance is low, log warning but DO NOT block customer payment!
     if (currentBalance <= 0 || currentBalance < officialPrice) {
-      return res.status(400).json({
-        success: false,
-        error: 'ពេជ្រដាច់ស្តុកបណ្តោះអាសន្ន (Out of Stock) - មិនអាចបង់ប្រាក់បានទេនៅពេលនេះ'
-      });
+      console.warn(`⚠️ [Sora Stock Warning] Current balance ($${currentBalance}) is lower than package price ($${officialPrice}). Order will proceed and notify admin if manual fulfillment is required.`);
     }
 
     const orderId = `ord_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
