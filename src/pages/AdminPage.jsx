@@ -52,6 +52,11 @@ export default function AdminPage({ onBack }) {
   const [isLoadingSora, setIsLoadingSora] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
 
+  // Live MySQL Database & Store Orders Data
+  const [dbStatus, setDbStatus] = useState(null);
+  const [mysqlOrders, setMysqlOrders] = useState([]);
+  const [activeOrdersTab, setActiveOrdersTab] = useState('mysql'); // 'mysql' | 'sora'
+
   // Auto cut background toggle
   const [autoCutBg, setAutoCutBg] = useState(true);
 
@@ -140,6 +145,22 @@ export default function AdminPage({ onBack }) {
 
       const ords = await getSoraOrders();
       if (ords.ok) setSoraOrders(ords.orders || []);
+
+      // Fetch Live MySQL DB status and Store Orders
+      try {
+        const dbRes = await fetch('/api/admin/db-status');
+        const dbData = await dbRes.json();
+        if (dbData.success) setDbStatus(dbData.db);
+
+        const token = typeof window !== 'undefined' ? (sessionStorage.getItem('onelove_admin_token') || '') : '';
+        if (token) {
+          const ordRes = await fetch('/api/admin/orders?limit=30', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const ordData = await ordRes.json();
+          if (ordData.success) setMysqlOrders(ordData.orders || []);
+        }
+      } catch (_) {}
     } catch (e) {
       console.warn('Admin sora load err:', e);
     } finally {
@@ -604,7 +625,24 @@ export default function AdminPage({ onBack }) {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Live MySQL Database Indicator */}
+            {dbStatus && (
+              <div className={`px-3 py-2 rounded-xl border text-right transition-all ${
+                dbStatus.isConnected 
+                  ? 'bg-emerald-950/70 border-emerald-500/50 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.2)]' 
+                  : 'bg-amber-950/70 border-amber-500/50 text-amber-300'
+              }`}>
+                <div className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 justify-end">
+                  <span className={`w-2 h-2 rounded-full ${dbStatus.isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
+                  <span>{dbStatus.isConnected ? 'MySQL Database' : 'DB Local Fallback'}</span>
+                </div>
+                <div className="text-xs font-black font-mono mt-0.5">
+                  {dbStatus.isConnected ? `Connected • ${dbStatus.ordersCount || 0} Orders` : 'Ready for Railway'}
+                </div>
+              </div>
+            )}
+
             {/* Live Sora Balance Card */}
             <div className="px-3.5 py-2 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-right">
               <div className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">
@@ -1178,38 +1216,102 @@ export default function AdminPage({ onBack }) {
 
         </div>
 
-        {/* Live Orders Feed from Sora */}
+        {/* Orders History & Feed (MySQL Database + Sora Provider) */}
         <div className="p-5 rounded-2xl bg-[#160a2b] border border-purple-500/30 shadow-lg space-y-3">
-          <div className="font-extrabold text-sm text-cyan-300 flex items-center justify-between border-b border-purple-500/20 pb-2">
-            <span>📋 ការបញ្ជាទិញជាក់ស្តែងចុងក្រោយ (Live Dispatched Orders Feed)</span>
-            <span className="text-[10px] text-gray-400 font-mono">Sora Reseller API</span>
+          <div className="flex flex-wrap items-center justify-between border-b border-purple-500/20 pb-2.5 gap-2">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveOrdersTab('mysql')}
+                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeOrdersTab === 'mysql'
+                    ? 'bg-gradient-to-r from-purple-600 to-cyan-500 text-white shadow'
+                    : 'bg-[#100722] text-gray-400 hover:text-white'
+                }`}
+              >
+                🗄️ MySQL Store Orders ({mysqlOrders.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveOrdersTab('sora')}
+                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeOrdersTab === 'sora'
+                    ? 'bg-gradient-to-r from-purple-600 to-cyan-500 text-white shadow'
+                    : 'bg-[#100722] text-gray-400 hover:text-white'
+                }`}
+              >
+                ⚡ Sora Reseller Feed ({soraOrders.length})
+              </button>
+            </div>
+            <span className="text-[10px] text-gray-400 font-mono">
+              {activeOrdersTab === 'mysql' ? 'MySQL Persistent Table' : 'Sora API'}
+            </span>
           </div>
 
-          <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-            {soraOrders.length > 0 ? (
-              soraOrders.slice(0, 8).map(ord => (
-                <div key={ord.refid} className="p-2.5 rounded-xl bg-[#0e041d] border border-purple-500/20 text-xs flex items-center justify-between">
-                  <div>
-                    <div className="font-bold text-gray-200 flex items-center gap-1.5">
-                      <span>{ord.item}</span>
-                      <span className="text-[10px] text-emerald-400 bg-emerald-950 px-1.5 py-0.5 rounded font-bold">
-                        {ord.status}
-                      </span>
+          <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+            {activeOrdersTab === 'mysql' ? (
+              mysqlOrders.length > 0 ? (
+                mysqlOrders.map(ord => (
+                  <div key={ord.orderId || ord.tranId} className="p-3 rounded-xl bg-[#0e041d] border border-purple-500/20 text-xs flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <div className="font-bold text-gray-200 flex items-center gap-2">
+                        <span className="text-cyan-300 capitalize">{ord.game}</span>
+                        <span>•</span>
+                        <span>{ord.packageName}</span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-black ${
+                          ord.dispatched || ord.status === 'SUCCESS' 
+                            ? 'bg-emerald-950 text-emerald-400 border border-emerald-500/40' 
+                            : (ord.verifiedPaid ? 'bg-cyan-950 text-cyan-400 border border-cyan-500/40' : 'bg-amber-950 text-amber-400 border border-amber-500/40')
+                        }`}>
+                          {ord.dispatched ? 'DISPATCHED' : (ord.verifiedPaid ? 'PAID' : (ord.status || 'PENDING'))}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-gray-400 font-mono mt-1 flex flex-wrap items-center gap-2">
+                        <span>Player: <strong className="text-white">{ord.playerName || ord.playerId}</strong></span>
+                        <span>(ID: {ord.playerId}{ord.serverId ? ` / Zone: ${ord.serverId}` : ''})</span>
+                        <span>• Tran: {ord.tranId}</span>
+                      </div>
                     </div>
-                    <div className="text-[10px] text-gray-400 font-mono mt-0.5">
-                      {ord.player} • {ord.nickname || 'Player'}
+                    <div className="text-right">
+                      <div className="font-extrabold text-emerald-400 font-mono text-sm">${Number(ord.amount).toFixed(2)} {ord.currency || 'USD'}</div>
+                      <div className="text-[9px] text-gray-500 font-mono">
+                        {ord.createdAt ? new Date(Number(ord.createdAt)).toLocaleTimeString('en-GB') : ''}
+                      </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="font-extrabold text-cyan-300 font-mono">${Number(ord.amount).toFixed(2)}</div>
-                    <div className="text-[9px] text-gray-500 font-mono">{ord.refid}</div>
-                  </div>
+                ))
+              ) : (
+                <div className="text-center py-6 text-xs text-gray-400 space-y-1">
+                  <div>មិនទាន់មានការបញ្ជាទិញក្នុង MySQL Database នៅឡើយទេ</div>
+                  <div className="text-[10px] text-gray-500 font-mono">រាល់ពេលភ្ញៀវទិញពេជ្រជោគជ័យ វានឹងកត់ត្រាស្វ័យប្រវត្តិចូល MySQL!</div>
                 </div>
-              ))
+              )
             ) : (
-              <div className="text-center py-4 text-xs text-gray-500">
-                មិនទាន់មាន Order ថ្មីទេ
-              </div>
+              soraOrders.length > 0 ? (
+                soraOrders.slice(0, 10).map(ord => (
+                  <div key={ord.refid} className="p-2.5 rounded-xl bg-[#0e041d] border border-purple-500/20 text-xs flex items-center justify-between">
+                    <div>
+                      <div className="font-bold text-gray-200 flex items-center gap-1.5">
+                        <span>{ord.item}</span>
+                        <span className="text-[10px] text-emerald-400 bg-emerald-950 px-1.5 py-0.5 rounded font-bold">
+                          {ord.status}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-gray-400 font-mono mt-0.5">
+                        {ord.player} • {ord.nickname || 'Player'}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-extrabold text-cyan-300 font-mono">${Number(ord.amount).toFixed(2)}</div>
+                      <div className="text-[9px] text-gray-500 font-mono">{ord.refid}</div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-4 text-xs text-gray-500">
+                  មិនទាន់មាន Order ថ្មីពី Sora ទេ
+                </div>
+              )
             )}
           </div>
         </div>

@@ -4,6 +4,7 @@ import fs from 'fs';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { formatFullPackageName } from './src/data/games.js';
+import * as db from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -55,52 +56,12 @@ async function sendTelegramMessage(chatId, text, parseMode = 'Markdown') {
 
 const SETTINGS_FILE = path.resolve(__dirname, 'admin-settings.json');
 
-function getSavedSettings() {
-  try {
-    if (fs.existsSync(SETTINGS_FILE)) {
-      return JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
-    }
-  } catch (e) { }
-  return {
-    adminPin: 'onelove2026',
-    games: {
-      'mobile-legends': {
-        coverImage: '/games/mobile-legends-cover.jpg',
-        diamondIcon: '/assets/diamonds/mlbb-diamond.png',
-        weeklyPassIcon: '/assets/diamonds/mlbb-weekly-pass.svg',
-        weeklyEliteIcon: '/assets/diamonds/elite-pass.svg',
-        monthlyEpicIcon: '/assets/diamonds/epic-pass.svg',
-        twilightIcon: '/assets/diamonds/twilight-pass.svg',
-        customTitle: 'Mobile Legends: Bang Bang'
-      },
-      'free-fire': {
-        coverImage: '/games/free-fire-cover.jpg',
-        diamondIcon: '/assets/diamonds/ff-diamond.png',
-        weeklyPassIcon: '/assets/diamonds/ff-weekly-card.svg',
-        weeklyLiteIcon: '/assets/diamonds/ff-weekly-lite.svg',
-        monthlyCardIcon: '/assets/diamonds/ff-monthly-card.svg',
-        levelUpIcon: '/assets/diamonds/ff-levelup.svg',
-        comboIcon: '/assets/diamonds/ff-combo.svg',
-        diamondPackIcon: '/assets/diamonds/ff-diamond-pack.png',
-        customTitle: 'Free Fire Mobile'
-      },
-      'roblox': {
-        coverImage: '/games/roblox-cover.jpg',
-        diamondIcon: '/assets/diamonds/robux-gold.svg',
-        weeklyPassIcon: '/assets/diamonds/robux-card.png',
-        customTitle: 'Roblox (Robux)'
-      }
-    }
-  };
+async function getSavedSettings() {
+  return await db.getSettings();
 }
 
-function saveSettingsFile(data) {
-  try {
-    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(data, null, 2), 'utf8');
-    return true;
-  } catch (e) {
-    return false;
-  }
+async function saveSettingsFile(data) {
+  return await db.saveSettings(data);
 }
 
 function formatTag(tag, value) {
@@ -153,22 +114,9 @@ function generateAdminToken() {
   return `adm_${ts}_${signature}`;
 }
 
-function verifyAdminSession(token) {
+async function verifyAdminSession(token) {
   if (!token || typeof token !== 'string') return false;
-  if (adminSessions.has(token)) {
-    const s = adminSessions.get(token);
-    if (Date.now() < s.expiresAt) return true;
-  }
-  if (token.startsWith('adm_')) {
-    const parts = token.split('_');
-    if (parts.length >= 2) {
-      const ts = Number(parts[1]);
-      if (!isNaN(ts) && (Date.now() - ts < 14 * 24 * 60 * 60 * 1000)) {
-        return true;
-      }
-    }
-  }
-  return false;
+  return await db.verifySession(token);
 }
 
 // Cleanup expired challenges every minute
@@ -256,23 +204,28 @@ app.use((req, res, next) => {
 });
 
 // --- ADMIN SETTINGS API ---
-app.get('/api/admin/settings', (req, res) => {
-  const settings = { ...getSavedSettings() };
-  delete settings.adminPin; // CRITICAL: NEVER leak adminPin to client
-  res.json({ success: true, settings });
+app.get('/api/admin/settings', async (req, res) => {
+  try {
+    const raw = await db.getSettings();
+    const settings = { ...raw };
+    delete settings.adminPin; // CRITICAL: NEVER leak adminPin to client
+    res.json({ success: true, settings });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
-app.post('/api/admin/settings', (req, res) => {
+app.post('/api/admin/settings', async (req, res) => {
   try {
     const authHeader = req.headers['authorization'] || '';
     const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
     const { token, authHash, pin, settings } = req.body || {};
     const sessionToken = bearerToken || token;
 
-    const current = getSavedSettings();
+    const current = await db.getSettings();
     let isAuthorized = false;
 
-    if (sessionToken && verifyAdminSession(sessionToken)) {
+    if (sessionToken && (await db.verifySession(sessionToken))) {
       isAuthorized = true;
     } else if (authHash || pin) {
       isAuthorized = verifyAuthSecret(authHash || pin, current.adminPin);
@@ -305,22 +258,47 @@ app.post('/api/admin/settings', (req, res) => {
       },
       adminPin: current.adminPin || 'onelove2026'
     };
-    saveSettingsFile(updatedSettings);
-    res.json({ success: true, msg: 'រក្សាទុកការកំណត់ Admin ជោគជ័យ', settings: updatedSettings });
+    await db.saveSettings(updatedSettings);
+    res.json({ success: true, msg: 'រក្សាទុកការកំណត់ Admin ក្នុង MySQL ជោគជ័យ', settings: updatedSettings });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// Explicit static serving of uploaded assets
+// Explicit static serving of uploaded assets with MySQL permanent persistence
 const uploadDir = path.resolve(__dirname, 'public/uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
+
+// Fallback: If image missing from disk (e.g. fresh container deploy), load from MySQL
+app.get('/uploads/:filename', async (req, res, next) => {
+  const filename = path.basename(req.params.filename);
+  const localPath = path.resolve(uploadDir, filename);
+  if (fs.existsSync(localPath)) {
+    return res.sendFile(localPath);
+  }
+  try {
+    const media = await db.getMedia(filename);
+    if (media && media.base64) {
+      let buffer;
+      const matches = media.base64.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+      if (matches && matches.length === 3) {
+        buffer = Buffer.from(matches[2], 'base64');
+      } else {
+        buffer = Buffer.from(media.base64, 'base64');
+      }
+      fs.writeFileSync(localPath, buffer);
+      res.setHeader('Content-Type', media.mimeType || 'image/png');
+      return res.send(buffer);
+    }
+  } catch (e) {}
+  next();
+});
 app.use('/uploads', express.static(uploadDir));
 
 // --- ADMIN IMAGE UPLOAD API ---
-app.post('/api/admin/upload', (req, res) => {
+app.post('/api/admin/upload', async (req, res) => {
   try {
     const { image, type = 'asset' } = req.body || {};
     if (!image) {
@@ -330,9 +308,10 @@ app.post('/api/admin/upload', (req, res) => {
     const matches = image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
     let ext = 'png';
     let buffer;
+    let mime = 'image/png';
 
     if (matches && matches.length === 3) {
-      const mime = matches[1];
+      mime = matches[1];
       if (mime.includes('jpeg') || mime.includes('jpg')) ext = 'jpg';
       else if (mime.includes('webp')) ext = 'webp';
       else if (mime.includes('svg')) ext = 'svg';
@@ -342,13 +321,11 @@ app.post('/api/admin/upload', (req, res) => {
     }
 
     const safeFilename = `${type}_${Date.now()}.${ext}`;
-    const uploadDir = path.resolve(__dirname, 'public/uploads');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-
     const targetPath = path.resolve(uploadDir, safeFilename);
     fs.writeFileSync(targetPath, buffer);
+
+    // Save image to MySQL database permanently!
+    await db.saveMedia(safeFilename, mime, image);
 
     res.json({ success: true, url: `/uploads/${safeFilename}` });
   } catch (err) {
@@ -369,7 +346,7 @@ app.get('/api/admin/challenge', (req, res) => {
 app.post('/api/admin/request-otp', async (req, res) => {
   try {
     const { keyId, envelope, authHash, pin } = req.body || {};
-    const current = getSavedSettings();
+    const current = await db.getSettings();
 
     if (keyId && envelope) {
       const check = validateAndConsumeEnvelope(keyId, envelope, current.adminPin);
@@ -382,7 +359,7 @@ app.post('/api/admin/request-otp', async (req, res) => {
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = Date.now() + 5 * 60 * 1000;
-    adminOtpMap.set(otp, { expiresAt });
+    await db.saveOtp(otp, expiresAt);
 
     const phnomPenhTime = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Phnom_Penh' });
     const otpMsg = `🔐 *ONE LOVE ADMIN - 2FA LOGIN OTP* 🔐\n` +
@@ -407,10 +384,10 @@ app.post('/api/admin/request-otp', async (req, res) => {
 });
 
 // --- ADMIN 2FA OTP VERIFY API ---
-app.post('/api/admin/verify-otp', (req, res) => {
+app.post('/api/admin/verify-otp', async (req, res) => {
   try {
     const { keyId, envelope, authHash, pin, otp: directOtp } = req.body || {};
-    const current = getSavedSettings();
+    const current = await db.getSettings();
 
     let otpToVerify = directOtp;
 
@@ -430,15 +407,43 @@ app.post('/api/admin/verify-otp', (req, res) => {
       return res.status(400).json({ success: false, error: 'សូមបញ្ចូលលេខកូដ OTP (Missing OTP)' });
     }
 
-    const record = adminOtpMap.get(String(otpToVerify).trim());
-    if (!record || Date.now() > record.expiresAt) {
+    const isValid = await db.verifyAndConsumeOtp(otpToVerify);
+    if (!isValid) {
       return res.status(400).json({ success: false, error: 'លេខកូដ OTP មិនត្រឹមត្រូវ ឬផុតកំណត់ហើយ!' });
     }
 
-    adminOtpMap.delete(String(otpToVerify).trim());
     const sessionToken = generateAdminToken();
-    adminSessions.set(sessionToken, { expiresAt: Date.now() + 14 * 24 * 60 * 60 * 1000 });
+    await db.saveSession(sessionToken, Date.now() + 14 * 24 * 60 * 60 * 1000);
     res.json({ success: true, token: sessionToken });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// --- ADMIN MYSQL DATABASE STATUS API ---
+app.get('/api/admin/db-status', async (req, res) => {
+  try {
+    const status = await db.getDbStatus();
+    res.json({ success: true, db: status });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// --- ADMIN ORDERS LIST FROM MYSQL ---
+app.get('/api/admin/orders', async (req, res) => {
+  try {
+    const authHeader = req.headers['authorization'] || '';
+    const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+    const token = bearerToken || req.query.token;
+
+    if (!token || !(await db.verifySession(token))) {
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+
+    const limit = Number(req.query.limit) || 50;
+    const orders = await db.getRecentOrders(limit);
+    res.json({ success: true, orders });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -512,7 +517,7 @@ app.post('/api/orders/create', async (req, res) => {
       if (balData.ok) {
         currentBalance = Number(balData.balance ?? 0);
       }
-    } catch (e) {}
+    } catch (e) { }
 
     let officialPrice = 0;
     let packageName = packageCode;
@@ -548,7 +553,7 @@ app.post('/api/orders/create', async (req, res) => {
           officialPrice = Number(found.priceUsd);
           packageName = formatFullPackageName('roblox', found.cardId, found.name);
         }
-      } catch (e) {}
+      } catch (e) { }
 
       if (!officialPrice) {
         const defaultRobuxPrices = {
@@ -566,7 +571,7 @@ app.post('/api/orders/create', async (req, res) => {
       }
     }
 
-    const currentSettings = getSavedSettings();
+    const currentSettings = await db.getSettings();
     const gameKey = (game === 'ml' || game === 'mobile-legends') ? 'mobile-legends' : (game === 'ff' || game === 'free-fire' ? 'free-fire' : 'roblox');
     const customPrice = currentSettings.customPrices?.[gameKey]?.[packageCode];
     if (customPrice && Number(customPrice) > 0) {
@@ -578,9 +583,9 @@ app.post('/api/orders/create', async (req, res) => {
     }
 
     if (currentBalance <= 0 || currentBalance < officialPrice) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'ពេជ្រដាច់ស្តុកបណ្តោះអាសន្ន (Out of Stock) - មិនអាចបង់ប្រាក់បានទេនៅពេលនេះ' 
+      return res.status(400).json({
+        success: false,
+        error: 'ពេជ្រដាច់ស្តុកបណ្តោះអាសន្ន (Out of Stock) - មិនអាចបង់ប្រាក់បានទេនៅពេលនេះ'
       });
     }
 
@@ -609,7 +614,7 @@ app.post('/api/orders/create', async (req, res) => {
         deepLink = paylinkData.deepLink || paylinkData.deeplink;
         if (paylinkData.tranId) billNumber = paylinkData.tranId;
       }
-    } catch (e) {}
+    } catch (e) { }
 
     if (!qrString) {
       qrString = buildBakongKHQR(officialPrice, currency, tranId);
@@ -630,14 +635,14 @@ app.post('/api/orders/create', async (req, res) => {
       playerName,
       qrString,
       deepLink,
+      status: 'PENDING',
       createdAt: Date.now(),
       verifiedPaid: false,
       dispatched: false
     };
 
-    activeOrders.set(orderId, orderRecord);
-    activeOrders.set(tranId, orderRecord);
-    if (billNumber !== tranId) activeOrders.set(billNumber, orderRecord);
+    // Store in MySQL database (with memory fallback)
+    await db.createOrder(orderRecord);
 
     res.json({
       success: true,
@@ -661,17 +666,7 @@ app.post('/api/orders/verify-and-dispatch', async (req, res) => {
   try {
     const { orderId, tranId } = req.body || {};
 
-    let order = null;
-    if (orderId && activeOrders.has(orderId)) {
-      order = activeOrders.get(orderId);
-    } else if (tranId) {
-      for (const o of activeOrders.values()) {
-        if (o.tranId === tranId) {
-          order = o;
-          break;
-        }
-      }
-    }
+    let order = await db.getOrder(orderId || tranId);
 
     if (!order) {
       return res.status(404).json({ success: false, error: 'រកមិនឃើញការបញ្ជាទិញនេះទេ' });
@@ -700,7 +695,7 @@ app.post('/api/orders/verify-and-dispatch', async (req, res) => {
       if (payRes.ok && (payData.paid === true || payData.status === 'PAID' || payData.status === 'SUCCESS')) {
         isPaid = true;
       }
-    } catch (e) {}
+    } catch (e) { }
 
     if (!isPaid) {
       return res.json({
@@ -713,8 +708,8 @@ app.post('/api/orders/verify-and-dispatch', async (req, res) => {
     order.verifiedPaid = true;
 
     const isRobux = order.game === 'roblox' || order.game === 'robux';
-    const targetUrl = isRobux 
-      ? `${SORA_CONFIG.baseUrl}/robux/order` 
+    const targetUrl = isRobux
+      ? `${SORA_CONFIG.baseUrl}/robux/order`
       : `${SORA_CONFIG.baseUrl}/order`;
 
     const soraPayload = isRobux ? {
@@ -739,8 +734,15 @@ app.post('/api/orders/verify-and-dispatch', async (req, res) => {
     });
 
     const soraData = await soraResp.json();
+    const isDispatchOk = soraData && (soraData.ok || soraData.status === 'success' || soraData.status === 'SUCCESS' || soraData.order_id || soraData.orderId);
     order.dispatched = true;
     order.soraResult = soraData;
+    await db.updateOrder(order.orderId, {
+      status: isDispatchOk ? 'SUCCESS' : 'SUBMITTED',
+      verifiedPaid: true,
+      dispatched: true,
+      soraResult: soraData
+    });
 
     try {
       const gameNames = {
@@ -768,11 +770,11 @@ app.post('/api/orders/verify-and-dispatch', async (req, res) => {
         `━━━━━━━━━━━━━━━━━━━━━━\n` +
         `🛒 *Store:* ONE LOVE TOPUP Official Store`;
 
-      sendTelegramMessage(TELEGRAM_CONFIG.groupId, alertMsg).catch(() => {});
+      sendTelegramMessage(TELEGRAM_CONFIG.groupId, alertMsg).catch(() => { });
       for (const adminId of TELEGRAM_CONFIG.adminChatIds) {
-        sendTelegramMessage(adminId, alertMsg).catch(() => {});
+        sendTelegramMessage(adminId, alertMsg).catch(() => { });
       }
-    } catch (e) {}
+    } catch (e) { }
 
     res.json({
       success: true,
@@ -787,9 +789,9 @@ app.post('/api/orders/verify-and-dispatch', async (req, res) => {
 
 // Direct raw order block
 app.post('/api/sora/order', (req, res) => {
-  res.status(403).json({ 
-    ok: false, 
-    error: 'Direct call forbidden. All orders must complete verified payment via /api/orders/verify-and-dispatch.' 
+  res.status(403).json({
+    ok: false,
+    error: 'Direct call forbidden. All orders must complete verified payment via /api/orders/verify-and-dispatch.'
   });
 });
 
@@ -939,7 +941,7 @@ app.post('/api/check-player', async (req, res) => {
               ffNickname = String(gData.data).trim();
             }
           }
-        } catch (_) {}
+        } catch (_) { }
       }
 
       if (ffNickname) {
@@ -995,7 +997,7 @@ app.post('/api/check-player', async (req, res) => {
             if (thumbResp.ok && thumbData && thumbData.data && thumbData.data.length > 0) {
               avatarUrl = thumbData.data[0].imageUrl || '';
             }
-          } catch (_) {}
+          } catch (_) { }
 
           const robloxName = robloxUser.name || uid;
           const robloxDisplay = robloxUser.displayName || robloxName;
@@ -1055,7 +1057,8 @@ app.use((req, res) => {
   }
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
+  await db.initDb();
   console.log(`🚀 ONE LOVE TOPUP Production Server running on port ${PORT}`);
 });
 
