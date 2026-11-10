@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createSecureOrder, generateBakongQR } from '../services/paylink';
 import { createSoraOrder, getSoraPackages, getSoraRobux, getSoraProfile } from '../services/sora';
 import { verifyPlayer } from '../services/playerCheck';
-import { getGameAsset, getCustomPrice, getPackageCustomIcon } from '../services/adminSettings';
+import { getGameAsset, getCustomPrice, getPackageCustomIcon, isGameStockClosed } from '../services/adminSettings';
 import { formatFullPackageName } from '../data/games';
 import BakongQRModal from '../components/BakongQRModal';
 
@@ -54,8 +54,9 @@ export default function GameDetailPage({ game, currency, onBack }) {
     }
   };
 
-  // In Stock 24/7 - customers can purchase anytime without artificial blocks
-  const isOutOfStock = false;
+  // Out of stock when the admin has closed this game's stock (re-evaluated on
+  // every settings update via settingsTick).
+  const isOutOfStock = isGameStockClosed(game.id) || settingsTick < 0;
 
   // Sync with live Sora Topup API packages & categorize them
   useEffect(() => {
@@ -662,29 +663,55 @@ export default function GameDetailPage({ game, currency, onBack }) {
 
           {/* Real-time Game Stock Status */}
           <div className="mt-4">
-            <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-emerald-950/90 via-[#0d2a23] to-purple-950/80 border-2 border-emerald-500/70 text-emerald-200 text-xs sm:text-sm shadow-[0_0_20px_rgba(16,185,129,0.25)] flex items-center justify-between gap-3 animate-fadeIn">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center text-emerald-300 text-lg font-black shrink-0 shadow">
-                  ✓
-                </div>
-                <div>
-                  <div className="font-extrabold text-emerald-300 text-sm sm:text-base flex flex-wrap items-center gap-2">
-                    <span>មានស្តុកពេញលេញ (In Stock 24/7) — អាចទិញបានភ្លាមៗ</span>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                      READY TO BUY ✓
-                    </span>
+            {isOutOfStock ? (
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-red-950/90 via-[#2a0d0d] to-purple-950/80 border-2 border-red-500/70 text-red-200 text-xs sm:text-sm shadow-[0_0_20px_rgba(239,68,68,0.25)] flex items-center justify-between gap-3 animate-fadeIn">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-red-500/20 border-2 border-red-400 flex items-center justify-center text-red-300 text-lg font-black shrink-0 shadow">
+                    ✕
                   </div>
-                  <div className="text-[11px] text-gray-300 mt-0.5">
-                    ប្រព័ន្ធស្វ័យប្រវត្ត 24/7 • បញ្ចូលរហ័សទាន់ចិត្តតាមរយៈ Bakong KHQR (0% Fee)
+                  <div>
+                    <div className="font-extrabold text-red-300 text-sm sm:text-base flex flex-wrap items-center gap-2">
+                      <span>ដាច់ស្តុកបណ្តោះអាសន្ន (Out of Stock)</span>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-red-500/20 text-red-300 border border-red-500/40">
+                        បិទស្តុក
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-gray-300 mt-0.5">
+                      សូមអភ័យទោស ហ្គេមនេះបិទការបញ្ចូលបណ្តោះអាសន្ន។ សូមត្រឡប់មកវិញពេលក្រោយ។
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span>Active 24/7</span>
+                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/20 border border-red-500/40 text-red-300 text-xs font-bold">
+                  <span className="w-2 h-2 rounded-full bg-red-400"></span>
+                  <span>Closed</span>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-emerald-950/90 via-[#0d2a23] to-purple-950/80 border-2 border-emerald-500/70 text-emerald-200 text-xs sm:text-sm shadow-[0_0_20px_rgba(16,185,129,0.25)] flex items-center justify-between gap-3 animate-fadeIn">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center text-emerald-300 text-lg font-black shrink-0 shadow">
+                    ✓
+                  </div>
+                  <div>
+                    <div className="font-extrabold text-emerald-300 text-sm sm:text-base flex flex-wrap items-center gap-2">
+                      <span>មានស្តុកពេញលេញ (In Stock 24/7) — អាចទិញបានភ្លាមៗ</span>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                        READY TO BUY ✓
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-gray-300 mt-0.5">
+                      ប្រព័ន្ធស្វ័យប្រវត្ត 24/7 • បញ្ចូលរហ័សទាន់ចិត្តតាមរយៈ Bakong KHQR (0% Fee)
+                    </div>
+                  </div>
+                </div>
+
+                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span>Active 24/7</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Step 2: Select Diamond Package */}
@@ -899,10 +926,15 @@ export default function GameDetailPage({ game, currency, onBack }) {
           <button
             type="button"
             onClick={handleCheckout}
-            disabled={isGeneratingQR}
-            className="flex-shrink-0 px-5 sm:px-10 py-2.5 sm:py-3 rounded-full bg-gradient-to-r from-purple-600 via-fuchsia-600 to-cyan-500 hover:brightness-110 active:scale-95 text-white font-extrabold text-xs sm:text-base shadow-[0_0_20px_rgba(0,240,255,0.4)] transition-all flex items-center gap-1.5 sm:gap-2 disabled:opacity-60 border border-cyan-300/40 cursor-pointer"
+            disabled={isGeneratingQR || isOutOfStock}
+            className="flex-shrink-0 px-5 sm:px-10 py-2.5 sm:py-3 rounded-full bg-gradient-to-r from-purple-600 via-fuchsia-600 to-cyan-500 hover:brightness-110 active:scale-95 text-white font-extrabold text-xs sm:text-base shadow-[0_0_20px_rgba(0,240,255,0.4)] transition-all flex items-center gap-1.5 sm:gap-2 disabled:opacity-60 disabled:cursor-not-allowed border border-cyan-300/40 cursor-pointer"
           >
-            {isGeneratingQR ? (
+            {isOutOfStock ? (
+              <>
+                <span>🔒</span>
+                <span>ដាច់ស្តុក (Out of Stock)</span>
+              </>
+            ) : isGeneratingQR ? (
               <>
                 <span className="animate-spin">⏳</span>
                 <span>កំពុងដំណើរការ...</span>

@@ -623,6 +623,12 @@ app.post('/api/orders/create', async (req, res) => {
 
     const currentSettings = await db.getSettings();
     const gameKey = (game === 'ml' || game === 'mobile-legends') ? 'mobile-legends' : (game === 'ff' || game === 'free-fire' ? 'free-fire' : 'roblox');
+
+    // Admin stock control: block checkout entirely when this game's stock is closed.
+    if (currentSettings.games?.[gameKey]?.stockClosed) {
+      return res.status(400).json({ success: false, error: 'ហ្គេមនេះបិទស្តុកបណ្តោះអាសន្ន (Out of Stock) — មិនអាចបង់ប្រាក់បានទេនៅពេលនេះ' });
+    }
+
     const customPrice = currentSettings.customPrices?.[gameKey]?.[packageCode];
     if (customPrice && Number(customPrice) > 0) {
       officialPrice = Number(customPrice);

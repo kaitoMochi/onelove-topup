@@ -392,6 +392,50 @@ export default function AdminPage({ onBack }) {
     setTimeout(() => setSaveSuccessMsg(''), 4500);
   };
 
+  const stockClosed = !!(settings.games?.[selectedGame]?.stockClosed);
+
+  const handleToggleStock = async () => {
+    const newClosed = !stockClosed;
+    const existingGame = settings.games?.[selectedGame] || {};
+    const updated = {
+      ...settings,
+      games: {
+        ...settings.games,
+        [selectedGame]: { ...existingGame, stockClosed: newClosed }
+      }
+    };
+    setSettings(updated);
+    saveAdminSettings(updated);
+
+    try {
+      const token = typeof window !== 'undefined' ? (sessionStorage.getItem('onelove_admin_token') || '') : '';
+      const authHash = pinInput.trim() ? await hashAdminSecret(pinInput.trim()) : '';
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ token, authHash, settings: updated })
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.success) {
+        setSaveSuccessMsg(newClosed
+          ? '🔒 បានបិទស្តុក — អតិថិជនឃើញ "Out of Stock" ហើយមិនអាចបង់ប្រាក់បានទេ'
+          : '✅ បានបើកស្តុក — អតិថិជនអាចទិញបានធម្មតាវិញ');
+      } else if (res.status === 401) {
+        setSaveSuccessMsg('⚠️ Session ផុតកំណត់ សូមបញ្ចូល PIN ឡើងវិញ (Session Expired)');
+        setIsAuthenticated(false);
+      } else {
+        setSaveSuccessMsg('⚠️ ' + (data?.error || 'បរាជ័យក្នុងការរក្សាទុក'));
+      }
+    } catch (e) {
+      setSaveSuccessMsg('✓ រក្សាទុក!');
+    }
+
+    setTimeout(() => setSaveSuccessMsg(''), 4000);
+  };
+
   const handleResetDefaults = () => {
     if (!window.confirm('តើអ្នកពិតជាចង់កំណត់រូបភាព និងតម្លៃដើមឡើងវិញមែនទេ?')) return;
     
@@ -701,6 +745,34 @@ export default function AdminPage({ onBack }) {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Stock Open / Close Control */}
+        <div className={`p-3.5 rounded-xl border flex items-center justify-between ${stockClosed ? 'bg-red-950/40 border-red-500/40' : 'bg-[#0c2a1f] border-emerald-500/30'}`}>
+          <div className="flex items-center gap-2.5">
+            <span className="text-lg">{stockClosed ? '🔒' : '🟢'}</span>
+            <div>
+              <div className={`text-xs font-bold ${stockClosed ? 'text-red-300' : 'text-emerald-300'}`}>
+                ស្តុកសម្រាប់ {selectedGame.toUpperCase()} (Stock Control)
+              </div>
+              <div className="text-[11px] text-gray-400">
+                {stockClosed
+                  ? 'បិទស្តុក — ទំព័រ Home បង្ហាញ "Out of Stock" ហើយអតិថិជនមិនអាចបង់ប្រាក់បានទេ'
+                  : 'បើកស្តុក — អតិថិជនអាចទិញបានធម្មតា។ ចុចដើម្បីបិទស្តុក'}
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleToggleStock}
+            className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
+              stockClosed
+                ? 'bg-red-600 text-white shadow-[0_0_10px_rgba(239,68,68,0.4)]'
+                : 'bg-emerald-600 text-white shadow-[0_0_10px_rgba(16,185,129,0.4)]'
+            }`}
+          >
+            {stockClosed ? '🔒 បិទស្តុក (CLOSED)' : '✓ បើកស្តុក (OPEN)'}
+          </button>
         </div>
 
         {/* Auto Background Removal Toggle */}

@@ -219,6 +219,13 @@ export function getGameAsset(gameId, assetType, fallback = '') {
   return fallback;
 }
 
+// Admin can close a game's stock. When closed, the home card shows "Out of Stock"
+// and the game page blocks checkout.
+export function isGameStockClosed(gameId) {
+  const settings = getAdminSettings();
+  return !!(settings.games?.[gameId]?.stockClosed);
+}
+
 export function getCustomPrice(gameId, packageCode, defaultPrice) {
   const settings = getAdminSettings();
   const gamePrices = settings.customPrices?.[gameId];
