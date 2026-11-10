@@ -52,12 +52,18 @@ export default function BakongQRModal({ paymentData, playerInfo, orderResult, cu
           setPaidAt(Date.now());
           setPaymentStatus('PAID');
           clearInterval(interval);
-          
-          confetti({
-            particleCount: 100,
-            spread: 70,
-            origin: { y: 0.6 }
-          });
+
+          // Only celebrate when the top-up was actually delivered to the account.
+          const deliveredOk = (typeof res.dispatchOk === 'boolean')
+            ? res.dispatchOk
+            : !!(res.orderResult && (res.orderResult.ok || res.orderResult.status === 'success' || res.orderResult.status === 'SUCCESS' || res.orderResult.order_id || res.orderResult.orderId || res.orderResult.code));
+          if (deliveredOk) {
+            confetti({
+              particleCount: 100,
+              spread: 70,
+              origin: { y: 0.6 }
+            });
+          }
 
           if (onSuccess) {
             onSuccess(res);
