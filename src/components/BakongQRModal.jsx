@@ -6,7 +6,15 @@ import { checkPaymentStatus, verifyAndDispatchOrder } from '../services/paylink'
 export default function BakongQRModal({ paymentData, playerInfo, orderResult, currency, onClose, onSuccess }) {
   const [qrDataUrl, setQrDataUrl] = useState('');
   const [paymentStatus, setPaymentStatus] = useState('PENDING'); // PENDING | PAID | EXPIRED
-  const [timeLeft, setTimeLeft] = useState(900); // 15 mins
+  // QR payment window = 3 minutes. Anchor to a fixed expiry timestamp so the
+  // countdown stays accurate even if the browser tab is backgrounded (which
+  // throttles setInterval). Prefer the server-provided expiresAt when present.
+  const EXPIRY_SECONDS = 180;
+  const [expiresAt] = useState(() => {
+    const serverExp = Number(paymentData?.expiresAt);
+    return serverExp && serverExp > Date.now() ? serverExp : Date.now() + EXPIRY_SECONDS * 1000;
+  });
+  const [timeLeft, setTimeLeft] = useState(() => Math.max(0, Math.round((expiresAt - Date.now()) / 1000)));
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -65,19 +73,18 @@ export default function BakongQRModal({ paymentData, playerInfo, orderResult, cu
   useEffect(() => {
     if (paymentStatus !== 'PENDING') return;
 
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          setPaymentStatus('EXPIRED');
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    const tick = () => {
+      const remaining = Math.max(0, Math.round((expiresAt - Date.now()) / 1000));
+      setTimeLeft(remaining);
+      if (remaining <= 0) {
+        setPaymentStatus('EXPIRED');
+      }
+    };
 
+    tick(); // run immediately so the UI is correct on first paint
+    const timer = setInterval(tick, 1000);
     return () => clearInterval(timer);
-  }, [paymentStatus]);
+  }, [paymentStatus, expiresAt]);
 
   const formatTimer = (seconds) => {
     const mins = Math.floor(seconds / 60);

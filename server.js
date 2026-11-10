@@ -36,15 +36,13 @@ function getPaylinkEndpoint(subpath) {
 
 function sanitizeBakongKHQR(qrStr) {
   if (!qrStr || typeof qrStr !== 'string') return qrStr;
-  let fixed = qrStr;
-  // Fix Paylink merchant ID suffix typo (onelo@bkrtONE -> onelo@bkrt)
-  if (fixed.includes('29170013onelo@bkrtONE')) {
-    fixed = fixed.replace('29170013onelo@bkrtONE', '29140010onelo@bkrt');
-    const dataWithoutCrc = fixed.slice(0, -4);
-    const newCrc = crc16(dataWithoutCrc);
-    return dataWithoutCrc + newCrc;
-  }
-  return fixed;
+  // IMPORTANT: Return Paylink's KHQR string EXACTLY as issued.
+  // Paylink registers each transaction against the merchant account embedded in
+  // this QR and reconciles the incoming payment by that exact value. Rewriting
+  // the account here (previously onelo@bkrtONE -> onelo@bkrt + recomputed CRC)
+  // made the customer pay a QR that Paylink was NOT tracking, so /payment/check
+  // always returned PENDING / TRANSACTION_NOT_FOUND and orders never dispatched.
+  return qrStr;
 }
 
 const SORA_CONFIG = {
@@ -612,10 +610,12 @@ app.post('/api/orders/create', async (req, res) => {
 
     const orderId = `ord_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
     const tranId = `${Date.now()}${Math.floor(1000 + Math.random() * 9000)}`;
+    const expiresAt = Date.now() + 3 * 60 * 1000; // KHQR valid for 3 minutes
 
     let qrString = '';
     let deepLink = '';
     let billNumber = tranId;
+    let paylinkMd5 = '';
 
     try {
       const paylinkRes = await fetch(getPaylinkEndpoint('bakong/generate-qr'), {
@@ -629,13 +629,20 @@ app.post('/api/orders/create', async (req, res) => {
           currency: currency === 'KHR' ? 'KHR' : 'USD'
         })
       });
-      const paylinkData = await paylinkRes.json();
+      const paylinkData = await paylinkRes.json().catch(() => ({}));
       if (paylinkRes.ok && paylinkData.success && paylinkData.qrString) {
+        // Use Paylink's QR EXACTLY as issued so Paylink can reconcile the payment.
         qrString = sanitizeBakongKHQR(paylinkData.qrString);
-        deepLink = `bakong://qr?data=${encodeURIComponent(qrString)}`;
-        if (paylinkData.tranId) billNumber = paylinkData.tranId;
+        deepLink = paylinkData.deepLink || paylinkData.deeplink || `bakong://qr?data=${encodeURIComponent(qrString)}`;
+        // Paylink returns tranId === transactionId === billNumber; md5 is its reconciliation hash.
+        billNumber = paylinkData.billNumber || paylinkData.tranId || paylinkData.transactionId || billNumber;
+        paylinkMd5 = paylinkData.md5 || '';
+      } else {
+        console.warn(`[orders/create] Paylink generate-qr rejected (http=${paylinkRes.status}, success=${paylinkData && paylinkData.success}). Using LOCAL fallback QR, which Paylink CANNOT auto-verify.`);
       }
-    } catch (e) { }
+    } catch (e) {
+      console.warn('[orders/create] Paylink generate-qr error:', e.message, '- using LOCAL fallback QR (not auto-verifiable).');
+    }
 
     if (!qrString) {
       qrString = buildBakongKHQR(officialPrice, currency, tranId);
@@ -646,6 +653,7 @@ app.post('/api/orders/create', async (req, res) => {
       orderId,
       tranId,
       billNumber,
+      md5: paylinkMd5,
       game,
       packageCode,
       packageName,
@@ -658,6 +666,7 @@ app.post('/api/orders/create', async (req, res) => {
       deepLink,
       status: 'PENDING',
       createdAt: Date.now(),
+      expiresAt,
       verifiedPaid: false,
       dispatched: false
     };
@@ -670,6 +679,7 @@ app.post('/api/orders/create', async (req, res) => {
       orderId,
       tranId,
       billNumber,
+      expiresAt,
       amount: officialPrice,
       currency,
       qrString,
@@ -703,6 +713,7 @@ app.post('/api/orders/verify-and-dispatch', async (req, res) => {
     }
 
     let isPaid = false;
+    const checkId = order.billNumber || order.tranId;
     try {
       const payRes = await fetch(getPaylinkEndpoint('payment/check'), {
         method: 'POST',
@@ -710,13 +721,17 @@ app.post('/api/orders/verify-and-dispatch', async (req, res) => {
           'Authorization': `Bearer ${PAYLINK_CONFIG.apiKey}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ tranId: order.billNumber || order.tranId })
+        body: JSON.stringify({ tranId: checkId, md5: order.md5 || undefined })
       });
-      const payData = await payRes.json();
-      if (payRes.ok && (payData.paid === true || payData.status === 'PAID' || payData.status === 'SUCCESS')) {
+      const payData = await payRes.json().catch(() => ({}));
+      if (payData.paid === true || payData.status === 'PAID' || payData.status === 'SUCCESS') {
         isPaid = true;
+      } else {
+        console.log(`[verify-and-dispatch] order ${order.orderId} still unpaid (tranId=${checkId}, http=${payRes.status}, status=${payData.status || payData.code || 'n/a'})`);
       }
-    } catch (e) { }
+    } catch (e) {
+      console.warn(`[verify-and-dispatch] payment/check error for order ${order.orderId}:`, e.message);
+    }
 
     if (!isPaid) {
       return res.json({
@@ -821,11 +836,13 @@ app.post('/api/bakong/generate-qr', async (req, res) => {
   try {
     const { amount = 1.00, currency = 'USD' } = req.body || {};
     const tranId = `${Date.now()}${Math.floor(1000 + Math.random() * 9000)}`;
+    const expiresAt = Date.now() + 3 * 60 * 1000; // KHQR valid for 3 minutes
     const qrString = buildBakongKHQR(amount, currency, tranId);
     const deepLink = `bakong://qr?data=${encodeURIComponent(qrString)}`;
     res.json({
       success: true,
       tranId,
+      expiresAt,
       amount,
       currency,
       qrString,
@@ -841,19 +858,22 @@ app.post('/api/bakong/generate-qr', async (req, res) => {
 // Payment check
 app.post('/api/payment/check', async (req, res) => {
   try {
-    const { tranId } = req.body || {};
+    const { tranId, md5 } = req.body || {};
     const response = await fetch(getPaylinkEndpoint('payment/check'), {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${PAYLINK_CONFIG.apiKey}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ tranId })
+      body: JSON.stringify({ tranId, md5 })
     });
-    const data = await response.json();
-    res.status(response.status).json(data);
+    const data = await response.json().catch(() => ({ success: false, paid: false, error: 'Invalid Paylink response' }));
+    // Paylink returns 404 for "transaction not found yet"; forward as 200 so the
+    // client poll reads { paid:false } instead of treating it as a transport error.
+    res.status(200).json(data);
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    console.warn('[payment/check] proxy error:', err.message);
+    res.status(500).json({ success: false, paid: false, error: err.message });
   }
 });
 

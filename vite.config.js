@@ -5,10 +5,12 @@ import path from 'path'
 import crypto from 'crypto'
 import { formatFullPackageName } from './src/data/games.js'
 
+// Dev proxy must point at the SAME live Paylink API as server.js (the old
+// paylinkapi-bot.onrender.com host was suspended, which broke local payments).
 const PAYLINK_CONFIG = {
-  baseUrl: 'https://paylinkapi-bot.onrender.com',
-  apiKey: 'plk_live_std_af901733065f27b5608e3c198026bfe6f23d',
-  secret: 'whsec_4074c0b74b3d64a19de5c3f27f5bf022e75e593bfeb5e1955bb69bff212d3cb3',
+  baseUrl: 'https://paylinkapibank.com/api/v2',
+  apiKey: 'plk_live_std_8c1b07e56227e46b7f0dfa6bcb1dbc30a951',
+  secret: 'whsec_5c042e0619885587c3925fe770d3534404064fe652c467d8d82a89e0c9bd67f8',
   storeName: 'ONE LOVE TOPUP',
   bakongId: 'onelo@bkrt',
 }
@@ -697,7 +699,7 @@ function apiProxyPlugin() {
               let tranId = '';
 
               try {
-                const plRes = await fetch(`${PAYLINK_CONFIG.baseUrl}/api/bakong/generate-qr`, {
+                const plRes = await fetch(`${PAYLINK_CONFIG.baseUrl}/bakong/generate-qr`, {
                   method: 'POST',
                   headers: {
                     'Authorization': `Bearer ${PAYLINK_CONFIG.apiKey}`,
@@ -807,7 +809,7 @@ function apiProxyPlugin() {
               // Verify payment with PayLink
               let isPaid = false;
               try {
-                const checkRes = await fetch(`${PAYLINK_CONFIG.baseUrl}/api/payment/check`, {
+                const checkRes = await fetch(`${PAYLINK_CONFIG.baseUrl}/payment/check`, {
                   method: 'POST',
                   headers: {
                     'Authorization': `Bearer ${PAYLINK_CONFIG.apiKey}`,
@@ -937,7 +939,7 @@ function apiProxyPlugin() {
               const amount = Number(parsed.amount) || 1.00;
               const currency = parsed.currency || 'USD';
 
-              const response = await fetch(`${PAYLINK_CONFIG.baseUrl}/api/bakong/generate-qr`, {
+              const response = await fetch(`${PAYLINK_CONFIG.baseUrl}/bakong/generate-qr`, {
                 method: 'POST',
                 headers: {
                   'Authorization': `Bearer ${PAYLINK_CONFIG.apiKey}`,
@@ -993,7 +995,7 @@ function apiProxyPlugin() {
               const parsed = JSON.parse(body || '{}');
               const tranId = parsed.tranId;
 
-              const response = await fetch(`${PAYLINK_CONFIG.baseUrl}/api/payment/check`, {
+              const response = await fetch(`${PAYLINK_CONFIG.baseUrl}/payment/check`, {
                 method: 'POST',
                 headers: {
                   'Authorization': `Bearer ${PAYLINK_CONFIG.apiKey}`,

@@ -69,6 +69,7 @@ export async function generateBakongQR(amount, currency = 'USD') {
       success: true,
       tranId: data.tranId || data.transactionId,
       billNumber: data.billNumber,
+      expiresAt: data.expiresAt,
       qrString: data.qrString,
       deepLink: data.deepLink || data.deeplink,
       amount: data.amount,
