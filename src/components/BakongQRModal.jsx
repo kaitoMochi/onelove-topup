@@ -18,6 +18,7 @@ export default function BakongQRModal({ paymentData, playerInfo, orderResult, cu
   const [copied, setCopied] = useState(false);
   const [successResult, setSuccessResult] = useState(null); // full verify-and-dispatch response
   const [paidAt, setPaidAt] = useState(null);
+  const [paidPending, setPaidPending] = useState(false); // paid, but Robux code still being delivered
 
   useEffect(() => {
     if (!paymentData?.qrString) return;
@@ -49,24 +50,30 @@ export default function BakongQRModal({ paymentData, playerInfo, orderResult, cu
 
         if (res && (res.paid || res.status === 'PAID')) {
           setSuccessResult(res);
-          setPaidAt(Date.now());
-          setPaymentStatus('PAID');
-          clearInterval(interval);
+          setPaidAt((prev) => prev || Date.now());
 
-          // Only celebrate when the top-up was actually delivered to the account.
-          const deliveredOk = (typeof res.dispatchOk === 'boolean')
-            ? res.dispatchOk
-            : !!(res.orderResult && (res.orderResult.ok || res.orderResult.status === 'success' || res.orderResult.status === 'SUCCESS' || res.orderResult.order_id || res.orderResult.orderId || res.orderResult.code));
-          if (deliveredOk) {
-            confetti({
-              particleCount: 100,
-              spread: 70,
-              origin: { y: 0.6 }
-            });
-          }
+          // Classify delivery: 'delivered' | 'processing' | 'failed'
+          const deliv = res.delivery
+            || (res.dispatchOk === true ? 'delivered'
+              : (res.dispatchOk === false ? 'failed' : 'delivered'));
 
-          if (onSuccess) {
-            onSuccess(res);
+          if (deliv === 'processing') {
+            // Paid, but the Robux code is still being generated — keep polling.
+            setPaidPending(true);
+          } else {
+            setPaidPending(false);
+            setPaymentStatus('PAID');
+            clearInterval(interval);
+            if (deliv === 'delivered') {
+              confetti({
+                particleCount: 100,
+                spread: 70,
+                origin: { y: 0.6 }
+              });
+            }
+            if (onSuccess) {
+              onSuccess(res);
+            }
           }
         } else if (res && res.status === 'EXPIRED') {
           setPaymentStatus('EXPIRED');
@@ -81,7 +88,7 @@ export default function BakongQRModal({ paymentData, playerInfo, orderResult, cu
   }, [paymentData?.tranId, paymentStatus, onSuccess]);
 
   useEffect(() => {
-    if (paymentStatus !== 'PENDING') return;
+    if (paymentStatus !== 'PENDING' || paidPending) return;
 
     const tick = () => {
       const remaining = Math.max(0, Math.round((expiresAt - Date.now()) / 1000));
@@ -94,7 +101,7 @@ export default function BakongQRModal({ paymentData, playerInfo, orderResult, cu
     tick(); // run immediately so the UI is correct on first paint
     const timer = setInterval(tick, 1000);
     return () => clearInterval(timer);
-  }, [paymentStatus, expiresAt]);
+  }, [paymentStatus, expiresAt, paidPending]);
 
   const formatTimer = (seconds) => {
     const mins = Math.floor(seconds / 60);
@@ -123,16 +130,25 @@ export default function BakongQRModal({ paymentData, playerInfo, orderResult, cu
   const acctId = playerInfo?.userId || rc.playerId || '';
   const acctZone = playerInfo?.zoneId || rc.serverId || '';
   const pkgLabel = paymentData?.packageName || rc.packageName || packageName || '—';
-  const robuxCode = soraData?.code || orderResult?.code || '';
+  const robuxCode = sr.robuxCode
+    || (typeof soraData?.code === 'string' ? soraData.code : '')
+    || (typeof orderResult?.code === 'string' ? orderResult.code : '')
+    || '';
   const receiptDate = new Date(paidAt || rc.paidAt || Date.now()).toLocaleString('en-GB', {
     timeZone: 'Asia/Phnom_Penh', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
   });
   // Delivery result to the game account: ok | fail | pending
   let deliveryState;
-  if (typeof sr.dispatchOk === 'boolean') {
+  if (sr.delivery === 'delivered') {
+    deliveryState = 'ok';
+  } else if (sr.delivery === 'failed') {
+    deliveryState = 'fail';
+  } else if (sr.delivery === 'processing') {
+    deliveryState = 'pending';
+  } else if (typeof sr.dispatchOk === 'boolean') {
     deliveryState = sr.dispatchOk ? 'ok' : 'fail';
   } else if (soraData) {
-    deliveryState = (soraData.ok || soraData.status === 'success' || soraData.status === 'SUCCESS' || soraData.order_id || soraData.orderId || soraData.code) ? 'ok' : 'fail';
+    deliveryState = (soraData.ok || String(soraData.status || '').toLowerCase() === 'success' || soraData.order_id || soraData.orderId || (typeof soraData.code === 'string' && soraData.code.length >= 4)) ? 'ok' : 'fail';
   } else {
     deliveryState = 'pending';
   }
@@ -288,6 +304,18 @@ export default function BakongQRModal({ paymentData, playerInfo, orderResult, cu
               >
                 Generate New QR
               </button>
+            </div>
+          ) : paidPending ? (
+            <div className="py-10 flex flex-col items-center animate-fadeIn w-full text-center">
+              <div className="w-16 h-16 rounded-full bg-emerald-900/70 border-2 border-emerald-400 text-emerald-300 flex items-center justify-center text-3xl mb-3 shadow-[0_0_25px_rgba(16,185,129,0.5)]">
+                ✓
+              </div>
+              <h3 className="text-lg font-extrabold text-emerald-400">ទទួលប្រាក់ជោគជ័យ! (Payment Received)</h3>
+              <div className="mt-4 flex items-center gap-2 text-amber-300 text-sm font-bold">
+                <span className="animate-spin text-xl">⏳</span>
+                <span>កំពុងបញ្ជូនកូដ Robux...</span>
+              </div>
+              <p className="text-[11px] text-gray-400 mt-2 px-5">សូមរង់ចាំបន្តិច — កំពុងយកកូដ Robux ពី Sora។ សូមកុំបិទទំព័រនេះ។</p>
             </div>
           ) : (
             <>

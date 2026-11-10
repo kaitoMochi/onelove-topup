@@ -50,6 +50,35 @@ const SORA_CONFIG = {
   apiKey: process.env.SORA_API_KEY || 'sk_7fbe263e907ce46212397f6746d4cd5c7bb65c0932ef666f'
 };
 
+// Tracks orders currently being dispatched so concurrent client polls can't double-order.
+const dispatchingOrders = new Set();
+
+// Look up a Sora order (and its delivered Robux code) by its reference id.
+async function fetchSoraOrderByRef(ref) {
+  if (!ref) return null;
+  try {
+    const r = await fetch(`${SORA_CONFIG.baseUrl}/orders`, {
+      headers: { 'Authorization': `Bearer ${SORA_CONFIG.apiKey}` }
+    });
+    const d = await r.json().catch(() => ({}));
+    const list = Array.isArray(d.orders) ? d.orders : [];
+    return list.find(o => o.refid === ref || o.ref === ref || o.orderRef === ref) || null;
+  } catch (e) {
+    console.warn('[sora] fetchSoraOrderByRef error:', e.message);
+    return null;
+  }
+}
+
+// Extract a redeemable Robux code from a Sora order/response (ignores the numeric result code).
+function extractRobuxCode(obj) {
+  if (!obj) return '';
+  const candidates = [obj.code, obj.redeemCode, obj.cardCode, obj.serial, obj.pin];
+  for (const c of candidates) {
+    if (typeof c === 'string' && c.trim().length >= 4) return c.trim();
+  }
+  return '';
+}
+
 const TELEGRAM_CONFIG = {
   botToken: process.env.TELEGRAM_BOT_TOKEN || '9095657133:AAFL4Yjo5ruXLeHw1BFhkr8KAXp61YF48YE',
   groupId: process.env.TELEGRAM_GROUP_ID || '-5416787286',
@@ -706,13 +735,41 @@ app.post('/api/orders/verify-and-dispatch', async (req, res) => {
     }
 
     if (order.dispatched) {
-      const prevOk = !!(order.soraResult && (order.soraResult.ok || order.soraResult.status === 'success' || order.soraResult.status === 'SUCCESS' || order.soraResult.order_id || order.soraResult.orderId || order.soraResult.code));
+      const isRobuxPrev = order.game === 'roblox' || order.game === 'robux';
+      let stored = order.soraResult || {};
+      let code = isRobuxPrev ? extractRobuxCode(stored) : '';
+      // If the Robux code was still "Processing" earlier, try to fetch it now.
+      if (isRobuxPrev && !code) {
+        const ref = stored.ref || stored.refid || stored.refId || '';
+        const found = await fetchSoraOrderByRef(ref);
+        if (found) {
+          stored = { ...stored, ...found };
+          if (String(found.status || '').toLowerCase() === 'success') code = extractRobuxCode(found);
+          if (code) stored = { ...stored, code, status: 'Success' };
+          order.soraResult = stored;
+          await db.updateOrder(order.orderId, code ? { soraResult: stored, status: 'SUCCESS' } : { soraResult: stored });
+        }
+      }
+      const prevOk = isRobuxPrev
+        ? !!code
+        : !!(stored && (stored.ok || String(stored.status || '').toLowerCase() === 'success' || stored.order_id || stored.orderId));
+      let delivery;
+      if (prevOk) {
+        delivery = 'delivered';
+      } else if (isRobuxPrev) {
+        const st = String(stored.status || '').toLowerCase();
+        delivery = (st === 'failed' || st === 'error' || stored.ok === false) ? 'failed' : 'processing';
+      } else {
+        delivery = 'failed';
+      }
       return res.json({
         success: true,
         paid: true,
         dispatched: true,
         dispatchOk: prevOk,
-        orderResult: order.soraResult,
+        delivery,
+        robuxCode: code || undefined,
+        orderResult: stored,
         receipt: {
           game: order.game,
           packageName: order.packageName,
@@ -759,92 +816,157 @@ app.post('/api/orders/verify-and-dispatch', async (req, res) => {
     order.verifiedPaid = true;
 
     const isRobux = order.game === 'roblox' || order.game === 'robux';
-    const targetUrl = isRobux
-      ? `${SORA_CONFIG.baseUrl}/robux/order`
-      : `${SORA_CONFIG.baseUrl}/order`;
 
-    const soraPayload = isRobux ? {
-      cardId: order.packageCode
-    } : {
-      game: (order.game === 'mobile-legends' || order.game === 'ml') ? 'ml' : 'ff',
-      code: order.packageCode,
-      playerId: order.playerId,
-      ...(order.serverId ? { serverId: order.serverId } : {})
-    };
-
-    const idempotencyKey = `ord_${order.orderId}`;
-
-    const soraResp = await fetch(targetUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${SORA_CONFIG.apiKey}`,
-        'Content-Type': 'application/json',
-        'Idempotency-Key': idempotencyKey
-      },
-      body: JSON.stringify(soraPayload)
-    });
-
-    const soraData = await soraResp.json();
-    const isDispatchOk = soraData && (soraData.ok || soraData.status === 'success' || soraData.status === 'SUCCESS' || soraData.order_id || soraData.orderId);
-    order.dispatched = true;
-    order.soraResult = soraData;
-    await db.updateOrder(order.orderId, {
-      status: isDispatchOk ? 'SUCCESS' : 'SUBMITTED',
-      verifiedPaid: true,
-      dispatched: true,
-      soraResult: soraData
-    });
+    // Guard: if another client poll is already dispatching this order, don't
+    // fire a second Sora order. Tell the client it is still processing.
+    if (dispatchingOrders.has(order.orderId)) {
+      return res.json({
+        success: true,
+        paid: true,
+        dispatched: false,
+        delivery: 'processing',
+        status: 'PROCESSING',
+        orderResult: order.soraResult || null
+      });
+    }
+    dispatchingOrders.add(order.orderId);
 
     try {
-      const gameNames = {
-        'mobile-legends': 'Mobile Legends',
-        'ml': 'Mobile Legends',
-        'free-fire': 'Free Fire Mobile',
-        'ff': 'Free Fire Mobile',
-        'roblox': 'Roblox (Robux)'
-      };
-      const gName = gameNames[order.game] || order.game;
-      const isDispatchOk = soraData && (soraData.ok || soraData.status === 'success' || soraData.status === 'SUCCESS' || soraData.order_id || soraData.orderId);
-      const phnomPenhTime = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Phnom_Penh' });
+      const targetUrl = isRobux
+        ? `${SORA_CONFIG.baseUrl}/robux/order`
+        : `${SORA_CONFIG.baseUrl}/order`;
 
-      const alertMsg = `🔔 *ការទូទាត់ជោគជ័យ (NEW SUCCESSFUL PAYMENT)* 🔔\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `🎮 *Game:* ${gName}\n` +
-        `💎 *Package:* ${order.packageName}\n` +
-        `💵 *Amount:* $${Number(order.amount).toFixed(2)} (${order.currency})\n` +
-        `👤 *Player Name:* ${order.playerName || 'Customer'}\n` +
-        `🆔 *User ID:* \`${order.playerId}\`\n` +
-        (order.serverId ? `🌐 *Zone ID:* \`${order.serverId}\`\n` : '') +
-        `🧾 *Tran ID:* \`${order.tranId}\`\n` +
-        `⚡ *Sora Dispatch:* ${isDispatchOk ? '✅ SUCCESS (បញ្ចូលស្វ័យប្រវត្តិ)' : '⚠️ ' + (soraData?.error || soraData?.message || 'SUBMITTED')}\n` +
-        `⏰ *Time:* ${phnomPenhTime}\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `🛒 *Store:* ONE LOVE TOPUP Official Store`;
-
-      sendTelegramMessage(TELEGRAM_CONFIG.groupId, alertMsg).catch(() => { });
-      for (const adminId of TELEGRAM_CONFIG.adminChatIds) {
-        sendTelegramMessage(adminId, alertMsg).catch(() => { });
-      }
-    } catch (e) { }
-
-    res.json({
-      success: true,
-      paid: true,
-      dispatched: true,
-      dispatchOk: !!isDispatchOk,
-      orderResult: soraData,
-      receipt: {
-        game: order.game,
-        packageName: order.packageName,
-        amount: order.amount,
-        currency: order.currency,
+      const soraPayload = isRobux ? {
+        cardId: order.packageCode
+      } : {
+        game: (order.game === 'mobile-legends' || order.game === 'ml') ? 'ml' : 'ff',
+        code: order.packageCode,
         playerId: order.playerId,
-        serverId: order.serverId,
-        playerName: order.playerName,
-        tranId: order.tranId,
-        paidAt: Date.now()
+        ...(order.serverId ? { serverId: order.serverId } : {})
+      };
+
+      const idempotencyKey = `ord_${order.orderId}`;
+
+      const soraResp = await fetch(targetUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${SORA_CONFIG.apiKey}`,
+          'Content-Type': 'application/json',
+          'Idempotency-Key': idempotencyKey
+        },
+        body: JSON.stringify(soraPayload)
+      });
+
+      let soraData = await soraResp.json().catch(() => ({}));
+      const soraRef = soraData.ref || soraData.refid || soraData.refId || '';
+
+      // Robux is delivered as a redeemable CODE. When the order is queued
+      // ("Processing"), the code is not in the initial response — poll
+      // GET /orders by ref to retrieve it once Sora finishes generating it.
+      let robuxCode = isRobux ? extractRobuxCode(soraData) : '';
+      if (isRobux && !robuxCode && soraRef) {
+        for (let i = 0; i < 4 && !robuxCode; i++) {
+          await new Promise(r => setTimeout(r, 2000));
+          const found = await fetchSoraOrderByRef(soraRef);
+          if (found) {
+            soraData = { ...soraData, ...found };
+            if (String(found.status || '').toLowerCase() === 'success') {
+              robuxCode = extractRobuxCode(found);
+            }
+          }
+        }
       }
-    });
+      if (isRobux && robuxCode) {
+        soraData = { ...soraData, code: robuxCode, status: 'Success' };
+      }
+
+      const isDispatchOk = isRobux
+        ? !!robuxCode
+        : !!(soraData && (soraData.ok || String(soraData.status || '').toLowerCase() === 'success' || soraData.order_id || soraData.orderId));
+
+      let delivery;
+      if (isDispatchOk) {
+        delivery = 'delivered';
+      } else if (isRobux) {
+        const st = String(soraData.status || '').toLowerCase();
+        delivery = (st === 'failed' || st === 'error' || soraData.ok === false) ? 'failed' : 'processing';
+      } else {
+        delivery = 'failed';
+      }
+
+      order.dispatched = true;
+      order.soraResult = soraData;
+      await db.updateOrder(order.orderId, {
+        status: isDispatchOk ? 'SUCCESS' : 'SUBMITTED',
+        verifiedPaid: true,
+        dispatched: true,
+        soraResult: soraData
+      });
+
+      try {
+        const gameNames = {
+          'mobile-legends': 'Mobile Legends',
+          'ml': 'Mobile Legends',
+          'free-fire': 'Free Fire Mobile',
+          'ff': 'Free Fire Mobile',
+          'roblox': 'Roblox (Robux)'
+        };
+        const gName = gameNames[order.game] || order.game;
+        const phnomPenhTime = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Phnom_Penh' });
+
+        let deliveryLine;
+        if (isRobux) {
+          deliveryLine = robuxCode
+            ? `🧩 *Robux Code:* \`${robuxCode}\`\n`
+            : `⏳ *Robux:* Processing — code pending${soraRef ? ` (ref: \`${soraRef}\`)` : ''}, check Sora panel\n`;
+        } else {
+          deliveryLine = `⚡ *Sora Dispatch:* ${isDispatchOk ? '✅ SUCCESS (បញ្ចូលស្វ័យប្រវត្តិ)' : '⚠️ ' + (soraData?.error || soraData?.message || soraData?.reason || 'SUBMITTED')}\n`;
+        }
+
+        const alertMsg = `🔔 *ការទូទាត់ជោគជ័យ (NEW SUCCESSFUL PAYMENT)* 🔔\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `🎮 *Game:* ${gName}\n` +
+          `💎 *Package:* ${order.packageName}\n` +
+          `💵 *Amount:* $${Number(order.amount).toFixed(2)} (${order.currency})\n` +
+          `👤 *Player Name:* ${order.playerName || 'Customer'}\n` +
+          `🆔 *User ID:* \`${order.playerId}\`\n` +
+          (order.serverId ? `🌐 *Zone ID:* \`${order.serverId}\`\n` : '') +
+          `🧾 *Tran ID:* \`${order.tranId}\`\n` +
+          deliveryLine +
+          `⏰ *Time:* ${phnomPenhTime}\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `🛒 *Store:* ONE LOVE TOPUP Official Store`;
+
+        sendTelegramMessage(TELEGRAM_CONFIG.groupId, alertMsg).catch(() => { });
+        for (const adminId of TELEGRAM_CONFIG.adminChatIds) {
+          sendTelegramMessage(adminId, alertMsg).catch(() => { });
+        }
+      } catch (e) { }
+
+      res.json({
+        success: true,
+        paid: true,
+        dispatched: true,
+        dispatchOk: isDispatchOk,
+        delivery,
+        robuxCode: robuxCode || undefined,
+        ref: soraRef || undefined,
+        orderResult: soraData,
+        receipt: {
+          game: order.game,
+          packageName: order.packageName,
+          amount: order.amount,
+          currency: order.currency,
+          playerId: order.playerId,
+          serverId: order.serverId,
+          playerName: order.playerName,
+          tranId: order.tranId,
+          paidAt: Date.now()
+        }
+      });
+    } finally {
+      dispatchingOrders.delete(order.orderId);
+    }
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
