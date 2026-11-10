@@ -9,8 +9,8 @@ import { formatFullPackageName } from './src/data/games.js'
 // paylinkapi-bot.onrender.com host was suspended, which broke local payments).
 const PAYLINK_CONFIG = {
   baseUrl: 'https://paylinkapibank.com/api/v2',
-  apiKey: 'plk_live_std_8c1b07e56227e46b7f0dfa6bcb1dbc30a951',
-  secret: 'whsec_5c042e0619885587c3925fe770d3534404064fe652c467d8d82a89e0c9bd67f8',
+  apiKey: 'plk_live_std_fe2ce372bdada7a311fce1d62bdbf42478ee',
+  secret: 'whsec_084215e3222d3b7350c9d2d2ac38fb556455c0507c2ef2453d31c7ecffe88fc6',
   storeName: 'ONE LOVE TOPUP',
   bakongId: 'onelo@bkrt',
 }
