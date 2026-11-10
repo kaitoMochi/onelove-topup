@@ -3,7 +3,7 @@ import QRCode from 'qrcode';
 import confetti from 'canvas-confetti';
 import { checkPaymentStatus, verifyAndDispatchOrder } from '../services/paylink';
 
-export default function BakongQRModal({ paymentData, playerInfo, orderResult, currency, onClose, onSuccess }) {
+export default function BakongQRModal({ paymentData, playerInfo, orderResult, currency, packageName, onClose, onSuccess }) {
   const [qrDataUrl, setQrDataUrl] = useState('');
   const [paymentStatus, setPaymentStatus] = useState('PENDING'); // PENDING | PAID | EXPIRED
   // QR payment window = 3 minutes. Anchor to a fixed expiry timestamp so the
@@ -16,6 +16,8 @@ export default function BakongQRModal({ paymentData, playerInfo, orderResult, cu
   });
   const [timeLeft, setTimeLeft] = useState(() => Math.max(0, Math.round((expiresAt - Date.now()) / 1000)));
   const [copied, setCopied] = useState(false);
+  const [successResult, setSuccessResult] = useState(null); // full verify-and-dispatch response
+  const [paidAt, setPaidAt] = useState(null);
 
   useEffect(() => {
     if (!paymentData?.qrString) return;
@@ -46,6 +48,8 @@ export default function BakongQRModal({ paymentData, playerInfo, orderResult, cu
         }
 
         if (res && (res.paid || res.status === 'PAID')) {
+          setSuccessResult(res);
+          setPaidAt(Date.now());
           setPaymentStatus('PAID');
           clearInterval(interval);
           
@@ -104,6 +108,29 @@ export default function BakongQRModal({ paymentData, playerInfo, orderResult, cu
     ? `${(paymentData?.amount * 4100).toLocaleString()} ៛`
     : `$${Number(paymentData?.amount || 0).toFixed(2)}`;
 
+  // --- Success receipt data (from verify-and-dispatch response + props) ---
+  const sr = successResult || {};
+  const rc = sr.receipt || {};
+  const soraData = sr.orderResult || orderResult || null;
+  const isRoblox = (playerInfo?.gameName || '').toLowerCase().includes('roblox');
+  const acctName = playerInfo?.username || rc.playerName || '—';
+  const acctId = playerInfo?.userId || rc.playerId || '';
+  const acctZone = playerInfo?.zoneId || rc.serverId || '';
+  const pkgLabel = paymentData?.packageName || rc.packageName || packageName || '—';
+  const robuxCode = soraData?.code || orderResult?.code || '';
+  const receiptDate = new Date(paidAt || rc.paidAt || Date.now()).toLocaleString('en-GB', {
+    timeZone: 'Asia/Phnom_Penh', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+  });
+  // Delivery result to the game account: ok | fail | pending
+  let deliveryState;
+  if (typeof sr.dispatchOk === 'boolean') {
+    deliveryState = sr.dispatchOk ? 'ok' : 'fail';
+  } else if (soraData) {
+    deliveryState = (soraData.ok || soraData.status === 'success' || soraData.status === 'SUCCESS' || soraData.order_id || soraData.orderId || soraData.code) ? 'ok' : 'fail';
+  } else {
+    deliveryState = 'pending';
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
       <div className="relative w-full max-w-sm sm:max-w-md bg-[#160a2b] rounded-3xl shadow-[0_0_40px_rgba(0,0,0,0.9),0_0_20px_rgba(124,58,237,0.3)] overflow-hidden border border-purple-500/40 text-white">
@@ -140,48 +167,97 @@ export default function BakongQRModal({ paymentData, playerInfo, orderResult, cu
         <div className="p-5 flex flex-col items-center bg-[#150a26] text-center">
           
           {paymentStatus === 'PAID' ? (
-            <div className="py-6 flex flex-col items-center animate-fadeIn w-full">
-              <div className="w-16 h-16 rounded-full bg-emerald-900/80 border-2 border-emerald-400 text-emerald-300 flex items-center justify-center text-3xl mb-3 shadow-[0_0_25px_rgba(16,185,129,0.5)]">
-                ✓
-              </div>
-              <h3 className="text-xl font-extrabold text-emerald-400">ការទូទាត់ជោគជ័យ! (Paid Successful)</h3>
-              
-              {playerInfo?.username && (
-                <div className="mt-3 p-3 rounded-2xl bg-emerald-950/60 border border-emerald-500/50 w-full text-xs text-left">
-                  <div className="text-[11px] text-gray-300 font-semibold uppercase">
-                    គណនីទទួល (Recipient Account):
+            <div className="py-5 flex flex-col items-center animate-fadeIn w-full">
+              {/* Delivery status header */}
+              {deliveryState === 'ok' ? (
+                <>
+                  <div className="w-16 h-16 rounded-full bg-emerald-900/80 border-2 border-emerald-400 text-emerald-300 flex items-center justify-center text-3xl mb-2 shadow-[0_0_25px_rgba(16,185,129,0.5)]">
+                    ✓
                   </div>
-                  <div className="text-base font-extrabold text-[#00f0ff] flex items-center gap-1.5 mt-0.5">
-                    <span>{playerInfo.username}</span>
-                    <span className="text-emerald-400 text-xs">✓</span>
+                  <h3 className="text-xl font-extrabold text-emerald-400">ជោគជ័យ! (Success)</h3>
+                  <p className="text-[11px] text-emerald-300/80 mt-0.5">បានបញ្ជូនទៅគណនីដោយជោគជ័យ (Delivered)</p>
+                </>
+              ) : deliveryState === 'pending' ? (
+                <>
+                  <div className="w-16 h-16 rounded-full bg-amber-900/70 border-2 border-amber-400 text-amber-200 flex items-center justify-center text-3xl mb-2 shadow-[0_0_20px_rgba(245,158,11,0.4)]">
+                    <span className="animate-spin">⏳</span>
                   </div>
-                  <div className="text-[11px] text-gray-300 font-mono mt-0.5">
-                    ID: {playerInfo.userId} {playerInfo.zoneId ? `(${playerInfo.zoneId})` : ''}
+                  <h3 className="text-xl font-extrabold text-amber-300">កំពុងបញ្ជូន... (Delivering)</h3>
+                  <p className="text-[11px] text-amber-200/80 mt-0.5">ទូទាត់ជោគជ័យ — កំពុងផ្ញើទៅគណនី</p>
+                </>
+              ) : (
+                <>
+                  <div className="w-16 h-16 rounded-full bg-red-950/80 border-2 border-red-500 text-red-400 flex items-center justify-center text-3xl mb-2 shadow-[0_0_20px_rgba(239,68,68,0.45)]">
+                    ✕
                   </div>
-                </div>
+                  <h3 className="text-xl font-extrabold text-red-400">បរាជ័យ (Failed)</h3>
+                  <p className="text-[11px] text-amber-300/90 mt-0.5 text-center px-3">ការទូទាត់ជោគជ័យ ប៉ុន្តែការបញ្ជូនបរាជ័យ។ ក្រុមការងារនឹងដោះស្រាយ។</p>
+                </>
               )}
 
-              {/* Specific Game Delivery Confirmation */}
-              <div className="mt-3 p-3 rounded-xl bg-[#1d0e37] border border-cyan-500/30 w-full text-xs text-center text-cyan-200">
-                {playerInfo?.gameName?.toLowerCase().includes('roblox') ? (
-                  <div>
-                    <div className="font-bold text-emerald-300">⚡ ប្រព័ន្ធកំពុងផ្ញើ Robux ទៅកាន់ @{playerInfo.username}!</div>
-                    {orderResult?.code && (
-                      <div className="mt-2 p-2 rounded bg-black/60 font-mono text-cyan-300 text-sm border border-cyan-500/50 select-all">
-                        Robux Code: <strong>{orderResult.code}</strong>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div>
-                    <div className="font-bold text-emerald-300">⚡ ពេជ្រត្រូវបានបញ្ជូនដោយស្វ័យប្រវត្តទៅក្នុងហ្គេម 1-3 វិនាទី!</div>
-                    <div className="text-[11px] text-gray-400 mt-1">Dispatched directly via Sora Topup API (24/7)</div>
-                  </div>
-                )}
-              </div>
+              {/* Receipt card */}
+              <div className="mt-4 w-full rounded-2xl bg-[#1a0f30] border border-purple-500/30 overflow-hidden text-sm">
+                <div className="px-4 py-2.5 bg-[#22133f] border-b border-purple-500/20 flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-purple-200">វិក្កយបត្រ (Receipt)</span>
+                  <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${deliveryState === 'ok' ? 'bg-emerald-900/70 text-emerald-300 border-emerald-500/50' : deliveryState === 'pending' ? 'bg-amber-900/60 text-amber-200 border-amber-500/50' : 'bg-red-950/70 text-red-300 border-red-500/50'}`}>
+                    {deliveryState === 'ok' ? 'SUCCESS' : deliveryState === 'pending' ? 'DELIVERING' : 'FAILED'}
+                  </span>
+                </div>
 
-              <div className="mt-3 px-4 py-1.5 bg-[#1f0f38] border border-purple-500/30 rounded-xl text-[11px] font-mono text-gray-300">
-                Tran ID: <span className="text-[#00f0ff]">{paymentData?.tranId}</span>
+                <div className="divide-y divide-white/5 text-left">
+                  {isRoblox ? (
+                    <div className="flex items-center justify-between px-4 py-2.5">
+                      <span className="text-gray-400 text-xs">Username</span>
+                      <span className="font-bold text-[#00f0ff]">@{acctName}</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between px-4 py-2.5">
+                        <span className="text-gray-400 text-xs">Account</span>
+                        <span className="font-bold text-[#00f0ff]">{acctName}</span>
+                      </div>
+                      <div className="flex items-center justify-between px-4 py-2.5">
+                        <span className="text-gray-400 text-xs">User ID</span>
+                        <span className="font-mono text-white">{acctId || '—'}</span>
+                      </div>
+                      {acctZone ? (
+                        <div className="flex items-center justify-between px-4 py-2.5">
+                          <span className="text-gray-400 text-xs">Zone ID</span>
+                          <span className="font-mono text-white">{acctZone}</span>
+                        </div>
+                      ) : null}
+                    </>
+                  )}
+
+                  <div className="flex items-center justify-between px-4 py-2.5 gap-3">
+                    <span className="text-gray-400 text-xs shrink-0">{isRoblox ? 'Robux' : 'Diamonds'}</span>
+                    <span className="font-bold text-white text-right">{pkgLabel}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between px-4 py-2.5">
+                    <span className="text-gray-400 text-xs">តម្លៃ (Price)</span>
+                    <span className="font-extrabold text-emerald-300">{formattedAmount}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between px-4 py-2.5">
+                    <span className="text-gray-400 text-xs">កាលបរិច្ឆេទ (Date)</span>
+                    <span className="text-gray-200 text-xs">{receiptDate}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between px-4 py-2.5">
+                    <span className="text-gray-400 text-xs">Tran ID</span>
+                    <span className="font-mono text-[11px] text-cyan-300">{paymentData?.tranId}</span>
+                  </div>
+                </div>
+
+                {isRoblox && robuxCode ? (
+                  <div className="px-4 py-3 bg-black/40 border-t border-cyan-500/30">
+                    <div className="text-[10px] text-gray-400 uppercase font-semibold mb-1">Robux Code</div>
+                    <div className="font-mono text-sm text-cyan-300 bg-black/60 rounded-lg px-3 py-2 border border-cyan-500/50 select-all text-center break-all">
+                      {robuxCode}
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
               <button
@@ -189,7 +265,7 @@ export default function BakongQRModal({ paymentData, playerInfo, orderResult, cu
                 onClick={onClose}
                 className="mt-5 px-7 py-2.5 rounded-full bg-gradient-to-r from-purple-600 via-fuchsia-600 to-cyan-500 text-white font-extrabold text-sm shadow-[0_0_15px_rgba(0,240,255,0.4)] hover:brightness-110 active:scale-95 transition-all"
               >
-                រួចរាល់ (Close & Finish)
+                រួចរាល់ (Close)
               </button>
             </div>
           ) : paymentStatus === 'EXPIRED' ? (

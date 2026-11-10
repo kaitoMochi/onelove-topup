@@ -680,6 +680,8 @@ app.post('/api/orders/create', async (req, res) => {
       tranId,
       billNumber,
       expiresAt,
+      game,
+      packageName,
       amount: officialPrice,
       currency,
       qrString,
@@ -704,11 +706,24 @@ app.post('/api/orders/verify-and-dispatch', async (req, res) => {
     }
 
     if (order.dispatched) {
+      const prevOk = !!(order.soraResult && (order.soraResult.ok || order.soraResult.status === 'success' || order.soraResult.status === 'SUCCESS' || order.soraResult.order_id || order.soraResult.orderId || order.soraResult.code));
       return res.json({
         success: true,
         paid: true,
         dispatched: true,
-        orderResult: order.soraResult
+        dispatchOk: prevOk,
+        orderResult: order.soraResult,
+        receipt: {
+          game: order.game,
+          packageName: order.packageName,
+          amount: order.amount,
+          currency: order.currency,
+          playerId: order.playerId,
+          serverId: order.serverId,
+          playerName: order.playerName,
+          tranId: order.tranId,
+          paidAt: order.createdAt
+        }
       });
     }
 
@@ -816,7 +831,19 @@ app.post('/api/orders/verify-and-dispatch', async (req, res) => {
       success: true,
       paid: true,
       dispatched: true,
-      orderResult: soraData
+      dispatchOk: !!isDispatchOk,
+      orderResult: soraData,
+      receipt: {
+        game: order.game,
+        packageName: order.packageName,
+        amount: order.amount,
+        currency: order.currency,
+        playerId: order.playerId,
+        serverId: order.serverId,
+        playerName: order.playerName,
+        tranId: order.tranId,
+        paidAt: Date.now()
+      }
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

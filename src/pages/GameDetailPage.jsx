@@ -930,6 +930,7 @@ export default function GameDetailPage({ game, currency, onBack }) {
           }}
           orderResult={orderResult}
           currency={currency}
+          packageName={selectedPackage?.name}
           onClose={() => {
             setPaymentData(null);
             setOrderResult(null);
