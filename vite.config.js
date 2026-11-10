@@ -127,6 +127,10 @@ function buildBakongKHQR(amount, currency = 'USD', tranId) {
   qr += formatTag('60', 'Phnom Penh');
   const sub62 = formatTag('01', tranId) + formatTag('03', PAYLINK_CONFIG.storeName) + formatTag('07', 'POS-01');
   qr += formatTag('62', sub62);
+  // Tag 99: KHQR timestamp — REQUIRED for a dynamic QR (point-of-initiation "12").
+  const nowMs = Date.now();
+  const expMs = nowMs + 60 * 60 * 1000; // valid for 1 hour
+  qr += formatTag('99', formatTag('00', String(nowMs)) + formatTag('01', String(expMs)));
   qr += '6304';
   const checksum = crc16(qr);
   return qr + checksum;
