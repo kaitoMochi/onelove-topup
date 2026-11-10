@@ -2,6 +2,7 @@
 const STORAGE_KEY = 'onelove_admin_settings_v1';
 
 const DEFAULT_SETTINGS = {
+  siteLogo: '/logo.jpg',
   games: {
     'mobile-legends': {
       coverImage: '/games/mobile-legends-cover.jpg',
@@ -224,6 +225,12 @@ export function getGameAsset(gameId, assetType, fallback = '') {
 export function isGameStockClosed(gameId) {
   const settings = getAdminSettings();
   return !!(settings.games?.[gameId]?.stockClosed);
+}
+
+// Site-wide brand logo (Navbar, Footer, QR). Falls back to the bundled logo.
+export function getSiteLogo() {
+  const settings = getAdminSettings();
+  return settings.siteLogo || '/logo.jpg';
 }
 
 export function getCustomPrice(gameId, packageCode, defaultPrice) {

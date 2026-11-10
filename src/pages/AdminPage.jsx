@@ -25,6 +25,7 @@ export default function AdminPage({ onBack }) {
     syncAdminSettingsWithServer().then((s) => {
       if (s) {
         setSettings(s);
+        setLogoUrl(s.siteLogo || '');
         const cfg = s.games?.[selectedGame] || {};
         setCoverUrl(cfg.coverImage || '');
         setDiamondUrl(cfg.diamondIcon || '');
@@ -68,6 +69,9 @@ export default function AdminPage({ onBack }) {
 
   const [coverUrl, setCoverUrl] = useState(currentGameConfig.coverImage || '');
   const [diamondUrl, setDiamondUrl] = useState(currentGameConfig.diamondIcon || '');
+
+  // Site-wide brand logo (not per-game)
+  const [logoUrl, setLogoUrl] = useState(settings.siteLogo || '');
 
   // MLBB specific event pass icons
   const [weeklyUrl, setWeeklyUrl] = useState(currentGameConfig.weeklyPassIcon || '');
@@ -332,6 +336,7 @@ export default function AdminPage({ onBack }) {
     const existingGame = settings.games?.[selectedGame] || {};
     const updated = {
       ...settings,
+      siteLogo: logoUrl.trim() || settings.siteLogo || '',
       games: {
         ...settings.games,
         [selectedGame]: {
@@ -433,6 +438,36 @@ export default function AdminPage({ onBack }) {
       setSaveSuccessMsg('✓ រក្សាទុក!');
     }
 
+    setTimeout(() => setSaveSuccessMsg(''), 4000);
+  };
+
+  const handleSaveLogo = async () => {
+    const updated = { ...settings, siteLogo: logoUrl.trim() || settings.siteLogo || '' };
+    setSettings(updated);
+    saveAdminSettings(updated);
+    try {
+      const token = typeof window !== 'undefined' ? (sessionStorage.getItem('onelove_admin_token') || '') : '';
+      const authHash = pinInput.trim() ? await hashAdminSecret(pinInput.trim()) : '';
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ token, authHash, settings: updated })
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.success) {
+        setSaveSuccessMsg('✓ បានប្តូររូបសញ្ញាហាង (Logo) ជោគជ័យ 100%!');
+      } else if (res.status === 401) {
+        setSaveSuccessMsg('⚠️ Session ផុតកំណត់ សូមបញ្ចូល PIN ឡើងវិញ (Session Expired)');
+        setIsAuthenticated(false);
+      } else {
+        setSaveSuccessMsg('⚠️ ' + (data?.error || 'បរាជ័យក្នុងការរក្សាទុក Logo'));
+      }
+    } catch (e) {
+      setSaveSuccessMsg('✓ រក្សាទុក!');
+    }
     setTimeout(() => setSaveSuccessMsg(''), 4000);
   };
 
@@ -719,6 +754,47 @@ export default function AdminPage({ onBack }) {
             {saveSuccessMsg}
           </div>
         )}
+
+        {/* Site Brand Logo (applies store-wide: Navbar, Footer, QR) */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-[#160a2b] border border-cyan-500/30 shadow-lg">
+          <div className="flex items-center justify-between border-b border-cyan-500/20 pb-3 mb-4">
+            <div className="font-extrabold text-base text-cyan-300 flex items-center gap-2">
+              <span>🖼️</span>
+              <span>រូបសញ្ញាហាង (Store Logo)</span>
+            </div>
+            <span className="text-[10px] text-gray-400 hidden sm:block">បង្ហាញលើ Navbar, Footer និង QR</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-black/60 border-2 border-cyan-400/50 overflow-hidden flex items-center justify-center p-1 shadow-[0_0_12px_rgba(0,240,255,0.3)] shrink-0">
+              <img
+                src={logoUrl || '/logo.jpg'}
+                alt="Store Logo"
+                className="w-full h-full object-cover rounded-full"
+                onError={(e) => { e.target.src = '/logo.jpg'; }}
+              />
+            </div>
+            <div className="flex-1 flex flex-col sm:flex-row gap-2">
+              <label className={`flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-purple-700 via-fuchsia-600 to-cyan-600 hover:brightness-110 active:scale-[0.99] text-white text-xs font-bold cursor-pointer flex items-center justify-center gap-2 shadow-md transition-all ${uploadingField === 'logo' ? 'opacity-70 pointer-events-none' : ''}`}>
+                <span>{uploadingField === 'logo' ? '⏳' : '📷'}</span>
+                <span>{uploadingField === 'logo' ? 'កំពុង Upload...' : 'Upload រូបសញ្ញាថ្មី (New Logo)'}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onClick={(e) => { e.target.value = null; }}
+                  onChange={(e) => handleFileUpload(e, setLogoUrl, 'logo', false)}
+                />
+              </label>
+              <button
+                type="button"
+                onClick={handleSaveLogo}
+                className="py-2.5 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold shadow-[0_0_12px_rgba(16,185,129,0.4)] transition-all whitespace-nowrap cursor-pointer"
+              >
+                💾 រក្សាទុក Logo
+              </button>
+            </div>
+          </div>
+        </div>
 
         {/* 3-ROW RESPONSIVE GAME SELECTOR (FIXES LOST ROBLOX ON MOBILE!) */}
         <div className="space-y-1.5">

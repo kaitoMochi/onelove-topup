@@ -306,6 +306,7 @@ app.post('/api/admin/settings', async (req, res) => {
         ...(current.customPrices || {}),
         ...(settings?.customPrices || {})
       },
+      siteLogo: (settings && settings.siteLogo !== undefined) ? settings.siteLogo : current.siteLogo,
       adminPin: current.adminPin || 'onelove2026'
     };
     await db.saveSettings(updatedSettings);

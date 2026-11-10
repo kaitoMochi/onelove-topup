@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import QRCode from 'qrcode';
 import confetti from 'canvas-confetti';
 import { checkPaymentStatus, verifyAndDispatchOrder } from '../services/paylink';
+import { getSiteLogo } from '../services/adminSettings';
 
 export default function BakongQRModal({ paymentData, playerInfo, orderResult, currency, packageName, onClose, onSuccess }) {
   const [qrDataUrl, setQrDataUrl] = useState('');
@@ -358,7 +359,7 @@ export default function BakongQRModal({ paymentData, playerInfo, orderResult, cu
                     {/* Centered Brand Mascot Logo - Compact & 100% Scan Safe */}
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                       <div className="w-8 h-8 bg-white rounded-full p-0.5 shadow-md border border-[#E11E26] overflow-hidden">
-                        <img src="/logo.jpg" alt="Logo" className="w-full h-full object-cover rounded-full" />
+                        <img src={getSiteLogo()} alt="Logo" className="w-full h-full object-cover rounded-full" onError={(e) => { e.target.src = '/logo.jpg'; }} />
                       </div>
                     </div>
                   </div>

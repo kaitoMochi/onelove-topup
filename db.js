@@ -277,10 +277,15 @@ export async function getSettings() {
         const row = rows[0];
         const games = typeof row.games_config === 'string' ? JSON.parse(row.games_config || '{}') : (row.games_config || {});
         const customPrices = typeof row.custom_prices === 'string' ? JSON.parse(row.custom_prices || '{}') : (row.custom_prices || {});
+        // Site-wide brand logo is stored inside games_config under a reserved key
+        // (keeps it persistent in MySQL without needing a new column).
+        const siteLogo = games.__siteLogo || '';
+        delete games.__siteLogo;
         const res = {
           adminPin: row.admin_pin || 'onelove2026',
           games,
-          customPrices
+          customPrices,
+          siteLogo
         };
         cachedSettings = res;
         return res;
@@ -311,7 +316,11 @@ export async function saveSettings(data) {
            custom_prices = VALUES(custom_prices)`,
         [
           data.adminPin || 'onelove2026',
-          JSON.stringify(data.games || {}),
+          JSON.stringify((() => {
+            const g = { ...(data.games || {}) };
+            if (data.siteLogo) g.__siteLogo = data.siteLogo;
+            return g;
+          })()),
           JSON.stringify(data.customPrices || {})
         ]
       );
