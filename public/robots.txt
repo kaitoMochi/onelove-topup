@@ -1,5 +1,7 @@
-# ONE LOVE TOPUP — allow all search engines to crawl & index everything
+# ONE LOVE TOPUP — allow all search engines to crawl & index the store
 User-agent: *
 Allow: /
+Disallow: /admin
+Disallow: /api/
 
-# Sitemap: https://YOURDOMAIN/sitemap.xml  (added once the real domain is set)
+Sitemap: https://onelovetopup.com/sitemap.xml
