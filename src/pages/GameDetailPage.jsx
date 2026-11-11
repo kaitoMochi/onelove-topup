@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createSecureOrder, generateBakongQR } from '../services/paylink';
 import { createSoraOrder, getSoraPackages, getSoraRobux, getSoraProfile } from '../services/sora';
 import { verifyPlayer } from '../services/playerCheck';
-import { getGameAsset, getCustomPrice, getPackageCustomIcon, isGameStockClosed } from '../services/adminSettings';
+import { getGameAsset, getCustomPrice, getPackageCustomIcon, isGameStockClosed, isPackageStockClosed } from '../services/adminSettings';
 import { formatFullPackageName } from '../data/games';
 import BakongQRModal from '../components/BakongQRModal';
 
@@ -56,7 +56,9 @@ export default function GameDetailPage({ game, currency, onBack }) {
 
   // Out of stock when the admin has closed this game's stock (re-evaluated on
   // every settings update via settingsTick).
-  const isOutOfStock = isGameStockClosed(game.id) || settingsTick < 0;
+  const isOutOfStock = isGameStockClosed(game.id)
+    || isPackageStockClosed(game.id, selectedPackage?.code || selectedPackage?.id)
+    || settingsTick < 0;
 
   // Sync with live Sora Topup API packages & categorize them
   useEffect(() => {
@@ -789,6 +791,7 @@ export default function GameDetailPage({ game, currency, onBack }) {
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
                           {sec.items.map(pkg => {
                             const isSelected = selectedPackage?.id === pkg.id;
+                            const pkgClosed = isPackageStockClosed(game?.id, pkg.code || pkg.id);
 
                             const pkgName = String(pkg?.name || '').toLowerCase();
                             const pkgCode = String(pkg?.code || '').toLowerCase();
@@ -809,12 +812,21 @@ export default function GameDetailPage({ game, currency, onBack }) {
                             return (
                               <div
                                 key={pkg.id}
-                                onClick={() => setSelectedPackage(pkg)}
-                                className={`package-item-card relative flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-transform duration-150 ${isSelected
-                                    ? 'bg-[#1d0e37] border-2 border-cyan-400 shadow-[0_0_15px_rgba(0,240,255,0.35)] scale-[1.01]'
-                                    : 'bg-[#150a28] hover:bg-[#1a0d33] border border-purple-500/25 hover:border-purple-400/40 shadow-sm'
+                                onClick={() => { if (!pkgClosed) setSelectedPackage(pkg); }}
+                                className={`package-item-card relative flex items-center gap-3 p-3 rounded-2xl transition-transform duration-150 ${pkgClosed
+                                    ? 'bg-[#120617] border border-red-500/40 opacity-60 cursor-not-allowed'
+                                    : isSelected
+                                      ? 'bg-[#1d0e37] border-2 border-cyan-400 shadow-[0_0_15px_rgba(0,240,255,0.35)] scale-[1.01] cursor-pointer'
+                                      : 'bg-[#150a28] hover:bg-[#1a0d33] border border-purple-500/25 hover:border-purple-400/40 shadow-sm cursor-pointer'
                                   }`}
                               >
+                                {pkgClosed && (
+                                  <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-black/45">
+                                    <span className="px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase bg-red-600 text-white border border-red-300/40 shadow -rotate-6">
+                                      ដាច់ស្តុក · Out of Stock
+                                    </span>
+                                  </div>
+                                )}
                                 {/* Left: Diamond / Pass Icon */}
                                 <div className="w-10 h-10 sm:w-11 sm:h-11 flex-shrink-0 flex items-center justify-center p-0.5 bg-black/30 rounded-xl border border-purple-500/20">
                                   <img

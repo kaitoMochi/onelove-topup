@@ -233,6 +233,13 @@ export function getSiteLogo() {
   return settings.siteLogo || '/logo.jpg';
 }
 
+// Admin can close stock for a single package (e.g. "100 Robux") within a game.
+export function isPackageStockClosed(gameId, code) {
+  const settings = getAdminSettings();
+  const cp = settings.games?.[gameId]?.closedPackages;
+  return !!(cp && cp[code]);
+}
+
 export function getCustomPrice(gameId, packageCode, defaultPrice) {
   const settings = getAdminSettings();
   const gamePrices = settings.customPrices?.[gameId];

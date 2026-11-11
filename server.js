@@ -636,6 +636,11 @@ app.post('/api/orders/create', async (req, res) => {
       return res.status(400).json({ success: false, error: 'ហ្គេមនេះបិទស្តុកបណ្តោះអាសន្ន (Out of Stock) — មិនអាចបង់ប្រាក់បានទេនៅពេលនេះ' });
     }
 
+    // Admin stock control (per package): block a specific closed package only.
+    if (currentSettings.games?.[gameKey]?.closedPackages?.[packageCode]) {
+      return res.status(400).json({ success: false, error: 'កញ្ចប់នេះដាច់ស្តុកបណ្តោះអាសន្ន (This package is out of stock)' });
+    }
+
     const customPrice = currentSettings.customPrices?.[gameKey]?.[packageCode];
     if (customPrice && Number(customPrice) > 0) {
       officialPrice = Number(customPrice);

@@ -27,6 +27,7 @@ export default function AdminPage({ onBack }) {
         setSettings(s);
         setLogoUrl(s.siteLogo || '');
         const cfg = s.games?.[selectedGame] || {};
+        setClosedPackages(cfg.closedPackages || {});
         setCoverUrl(cfg.coverImage || '');
         setDiamondUrl(cfg.diamondIcon || '');
         setWeeklyUrl(cfg.weeklyPassIcon || '');
@@ -87,6 +88,8 @@ export default function AdminPage({ onBack }) {
 
   // Package prices state: { [packageCode]: price }
   const [customPrices, setCustomPrices] = useState(settings.customPrices?.[selectedGame] || {});
+  // Per-package closed stock state: { [packageCode]: true }
+  const [closedPackages, setClosedPackages] = useState(settings.games?.[selectedGame]?.closedPackages || {});
 
   // Keep inputs in sync when changing selected game
   useEffect(() => {
@@ -102,6 +105,7 @@ export default function AdminPage({ onBack }) {
     setFfLevelUpUrl(cfg.levelUpIcon || '');
     setFfComboUrl(cfg.comboIcon || '');
     setCustomPrices(settings.customPrices?.[selectedGame] || {});
+    setClosedPackages(settings.games?.[selectedGame]?.closedPackages || {});
     loadSoraData(selectedGame);
   }, [selectedGame]);
 
@@ -330,6 +334,49 @@ export default function AdminPage({ onBack }) {
       ...prev,
       [packageCode]: newPrice
     }));
+  };
+
+  // Close / open stock for a single package (e.g. "100 Robux"). Saves instantly.
+  const handleTogglePackage = async (code) => {
+    const existingGame = settings.games?.[selectedGame] || {};
+    const prev = existingGame.closedPackages || {};
+    const nowClosed = !prev[code];
+    const newClosed = { ...prev };
+    if (nowClosed) newClosed[code] = true; else delete newClosed[code];
+    const updated = {
+      ...settings,
+      games: {
+        ...settings.games,
+        [selectedGame]: { ...existingGame, closedPackages: newClosed }
+      }
+    };
+    setSettings(updated);
+    setClosedPackages(newClosed);
+    saveAdminSettings(updated);
+    try {
+      const token = typeof window !== 'undefined' ? (sessionStorage.getItem('onelove_admin_token') || '') : '';
+      const authHash = pinInput.trim() ? await hashAdminSecret(pinInput.trim()) : '';
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ token, authHash, settings: updated })
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.success) {
+        setSaveSuccessMsg(nowClosed ? `🔒 បានបិទស្តុក ${code} (Out of Stock)` : `✅ បានបើកស្តុក ${code}`);
+      } else if (res.status === 401) {
+        setSaveSuccessMsg('⚠️ Session ផុតកំណត់ សូមបញ្ចូល PIN ឡើងវិញ (Session Expired)');
+        setIsAuthenticated(false);
+      } else {
+        setSaveSuccessMsg('⚠️ ' + (data?.error || 'បរាជ័យក្នុងការរក្សាទុក'));
+      }
+    } catch (e) {
+      setSaveSuccessMsg('✓ រក្សាទុក!');
+    }
+    setTimeout(() => setSaveSuccessMsg(''), 3500);
   };
 
   const handleSaveAll = async () => {
@@ -1313,11 +1360,12 @@ export default function AdminPage({ onBack }) {
                     : getCustomPrice(selectedGame, pkg.code || pkg.id, pkg.price);
 
                   const displayPackageIcon = getPackageCustomIcon(selectedGame, pkg.code || pkg.id, pkg.img);
+                  const pkgClosed = !!closedPackages[pkg.code || pkg.id];
 
                   return (
                     <div 
                       key={pkg.id} 
-                      className="p-3 rounded-xl bg-[#0e041d] border border-purple-500/20 flex items-center justify-between gap-3"
+                      className={`p-3 rounded-xl flex items-center justify-between gap-3 ${pkgClosed ? 'bg-red-950/30 border border-red-500/40' : 'bg-[#0e041d] border border-purple-500/20'}`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0 flex-1">
                         <div className="w-8 h-8 rounded-lg bg-black/40 p-1 flex-shrink-0 flex items-center justify-center border border-purple-500/20">
@@ -1338,7 +1386,7 @@ export default function AdminPage({ onBack }) {
                         </div>
                       </div>
 
-                      {/* Price Input Box */}
+                      {/* Price Input + Per-Package Stock Toggle */}
                       <div className="flex items-center gap-1.5 flex-shrink-0">
                         <span className="text-xs font-bold text-cyan-300 font-mono">$</span>
                         <input 
@@ -1347,8 +1395,16 @@ export default function AdminPage({ onBack }) {
                           min="0.10"
                           value={currentPrice}
                           onChange={(e) => handlePriceChange(pkg.code || pkg.id, e.target.value)}
-                          className="w-24 px-2.5 py-1.5 bg-[#170930] border border-cyan-400/40 rounded-lg text-sm text-cyan-300 font-mono font-extrabold text-right focus:outline-none focus:border-cyan-300"
+                          className="w-20 px-2.5 py-1.5 bg-[#170930] border border-cyan-400/40 rounded-lg text-sm text-cyan-300 font-mono font-extrabold text-right focus:outline-none focus:border-cyan-300"
                         />
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePackage(pkg.code || pkg.id)}
+                          title={pkgClosed ? 'ចុចដើម្បីបើកស្តុក (Open)' : 'ចុចដើម្បីបិទស្តុក (Close)'}
+                          className={`px-2 py-1.5 rounded-lg text-xs font-extrabold whitespace-nowrap transition-all cursor-pointer ${pkgClosed ? 'bg-red-600 text-white shadow-[0_0_8px_rgba(239,68,68,0.4)]' : 'bg-emerald-600/80 text-white hover:bg-emerald-600'}`}
+                        >
+                          {pkgClosed ? '🔒' : '🟢'}
+                        </button>
                       </div>
                     </div>
                   );
