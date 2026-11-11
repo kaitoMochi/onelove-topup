@@ -1,0 +1,5 @@
+# ONE LOVE TOPUP — allow all search engines to crawl & index everything
+User-agent: *
+Allow: /
+
+# Sitemap: https://YOURDOMAIN/sitemap.xml  (added once the real domain is set)
