@@ -253,7 +253,7 @@ export default function BakongQRModal({ paymentData, playerInfo, orderResult, cu
                   )}
 
                   <div className="flex items-center justify-between px-4 py-2.5 gap-3">
-                    <span className="text-gray-400 text-xs shrink-0">{isRoblox ? 'Robux' : 'Diamonds'}</span>
+                    <span className="text-gray-400 text-xs shrink-0">{isRoblox ? 'Robux' : (/mobile legends|free fire/i.test(playerInfo?.gameName || '') ? 'Diamonds' : 'Package')}</span>
                     <span className="font-bold text-white text-right">{pkgLabel}</span>
                   </div>
 

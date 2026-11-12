@@ -1,7 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { getSoraProfile, getSoraPackages, getSoraOrders, getSoraRobux } from '../services/sora';
 import { getAdminSettings, saveAdminSettings, removeImageBackground, uploadAdminAsset, getCustomPrice, syncAdminSettingsWithServer, hashAdminSecret, createSecureEnvelope, getPackageCustomIcon } from '../services/adminSettings';
-import { GAMES, formatFullPackageName } from '../data/games';
+import { GAMES, formatFullPackageName, getSoraGameCode, classifySoraPackage, getDefaultPackageIcon } from '../data/games';
+
+const ADMIN_GAME_ICONS = {
+  'mobile-legends': '⚔️',
+  'free-fire': '🔥',
+  'roblox': '🧱',
+  'pubg-mobile': '🪖',
+  'blood-strike': '🎯',
+  'zepeto': '💜'
+};
+
+// Name of the main in-game currency, used for the admin icon upload card.
+const CURRENCY_LABEL = {
+  'roblox': 'ROBUX',
+  'pubg-mobile': 'UC',
+  'blood-strike': 'GOLD',
+  'zepeto': 'ZEMS'
+};
 
 export default function AdminPage({ onBack }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -150,6 +167,10 @@ export default function AdminPage({ onBack }) {
         } else {
           setSoraPackages([]);
         }
+      } else if (getSoraGameCode(gameId)) {
+        // PUBG Mobile / Blood Strike / Zepeto: live packages by Sora game code
+        const pkgs = await getSoraPackages(getSoraGameCode(gameId));
+        setSoraPackages(pkgs.ok ? (pkgs.packages || []) : []);
       } else {
         setSoraPackages([]);
       }
@@ -539,6 +560,11 @@ export default function AdminPage({ onBack }) {
     } else if (selectedGame === 'roblox') {
       setCoverUrl('/games/roblox-cover.jpg');
       setDiamondUrl('/assets/diamonds/robux-gold.svg');
+    } else {
+      // PUBG Mobile / Blood Strike / Zepeto
+      const g = GAMES.find(x => x.id === selectedGame);
+      if (g) setCoverUrl(g.image);
+      setDiamondUrl(g?.defaultIcon || getDefaultPackageIcon(selectedGame));
     }
     setCustomPrices({});
   };
@@ -559,14 +585,16 @@ export default function AdminPage({ onBack }) {
   const allGamePackages = (soraPackages && soraPackages.length > 0)
     ? soraPackages.map(sp => {
         const staticMatch = currentGameObj.packages?.find(p => String(p.code) === String(sp.code || sp.id));
+        const isClassicGame = ['mobile-legends', 'free-fire', 'roblox'].includes(selectedGame);
+        const info = isClassicGame ? null : classifySoraPackage(selectedGame, sp.code || sp.id, sp.name);
         return {
           id: sp.code || sp.id,
           code: sp.code || sp.id,
           name: formatFullPackageName(selectedGame, sp.code || sp.id, staticMatch?.name || sp.name),
-          section: staticMatch?.section || (String(sp.code).toLowerCase().includes('weekly') ? 'weekly' : 'diamonds'),
-          sectionTitle: staticMatch?.sectionTitle || (String(sp.code).toLowerCase().includes('weekly') ? 'Weekly Pass' : 'Diamonds'),
+          section: staticMatch?.section || info?.section || (String(sp.code).toLowerCase().includes('weekly') ? 'weekly' : 'diamonds'),
+          sectionTitle: staticMatch?.sectionTitle || info?.sectionTitle || (String(sp.code).toLowerCase().includes('weekly') ? 'Weekly Pass' : 'Diamonds'),
           price: sp.price !== undefined ? sp.price : (staticMatch?.price || 0),
-          img: staticMatch?.img || (selectedGame === 'roblox' ? '/assets/diamonds/robux-gold.svg' : (selectedGame === 'free-fire' ? '/assets/diamonds/ff-diamond.png' : '/assets/diamonds/mlbb-diamond.png'))
+          img: staticMatch?.img || info?.icon || getDefaultPackageIcon(selectedGame, sp.code || sp.id)
         };
       })
     : (currentGameObj.packages || []);
@@ -849,11 +877,7 @@ export default function AdminPage({ onBack }) {
             ជ្រើសរើសហ្គេមដែលត្រូវគ្រប់គ្រង (Select Game) :
           </label>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 p-2 rounded-2xl bg-[#130724] border border-purple-500/30">
-            {[
-              { id: 'mobile-legends', name: 'Mobile Legends (MLBB)', icon: '⚔️' },
-              { id: 'free-fire', name: 'Free Fire Mobile', icon: '🔥' },
-              { id: 'roblox', name: 'Roblox (Robux)', icon: '🧱' }
-            ].map(g => (
+            {GAMES.map(g => ({ id: g.id, name: g.name, icon: ADMIN_GAME_ICONS[g.id] || '🎮' })).map(g => (
               <button
                 key={g.id}
                 onClick={() => setSelectedGame(g.id)}
@@ -951,17 +975,21 @@ export default function AdminPage({ onBack }) {
                     <label className="text-xs font-black text-cyan-300 uppercase tracking-wider flex items-center gap-1.5">
                       <span>{selectedGame === 'roblox' ? '🧱' : '💎'}</span>
                       <span>
-                        {selectedGame === 'roblox' ? 'រូបតំណាង ROBUX LOGO' : 'រូបតំណាងពេជ្រធម្មតា (DIAMONDS)'}
+                        {CURRENCY_LABEL[selectedGame] ? `រូបតំណាង ${CURRENCY_LABEL[selectedGame]} LOGO` : 'រូបតំណាងពេជ្រធម្មតា (DIAMONDS)'}
                       </span>
                     </label>
                     <p className="text-[11px] text-gray-400 mt-0.5">
-                      {selectedGame === 'roblox' ? 'បង្ហាញលើគ្រប់កញ្ចប់ Robux Codes' : 'បង្ហាញលើកញ្ចប់ពេជ្រធម្មតាទាំងអស់ (Normal Diamonds)'}
+                      {selectedGame === 'roblox'
+                        ? 'បង្ហាញលើគ្រប់កញ្ចប់ Robux Codes'
+                        : CURRENCY_LABEL[selectedGame]
+                          ? `បង្ហាញលើកញ្ចប់ ${CURRENCY_LABEL[selectedGame]} ទាំងអស់`
+                          : 'បង្ហាញលើកញ្ចប់ពេជ្រធម្មតាទាំងអស់ (Normal Diamonds)'}
                     </p>
                   </div>
                   {/* Live Preview */}
                   <div className="w-14 h-14 rounded-xl bg-black/60 border border-cyan-400/50 flex items-center justify-center p-1.5 shadow-[0_0_12px_rgba(0,240,255,0.3)]">
                     <img 
-                      src={diamondUrl || (selectedGame === 'roblox' ? '/assets/diamonds/robux-gold.svg' : (selectedGame === 'free-fire' ? '/assets/diamonds/ff-diamond.png' : '/assets/diamonds/mlbb-diamond.png'))} 
+                      src={diamondUrl || GAMES.find(x => x.id === selectedGame)?.defaultIcon || getDefaultPackageIcon(selectedGame)} 
                       alt="Diamond Preview" 
                       className="w-full h-full object-contain"
                     />
@@ -970,7 +998,7 @@ export default function AdminPage({ onBack }) {
 
                 <label className={`w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-purple-700 via-fuchsia-600 to-cyan-600 hover:brightness-110 active:scale-[0.99] text-white text-xs font-bold cursor-pointer flex items-center justify-center gap-2 shadow-md transition-all ${uploadingField === 'diamond' ? 'opacity-70 pointer-events-none' : ''}`}>
                   <span>{uploadingField === 'diamond' ? '⏳' : '📷'}</span>
-                  <span>{uploadingField === 'diamond' ? 'កំពុងដំណើរការ Upload...' : (selectedGame === 'roblox' ? 'Upload រូប Robux Logo' : 'Upload រូបពេជ្រធម្មតា (Normal Diamonds)')}</span>
+                  <span>{uploadingField === 'diamond' ? 'កំពុងដំណើរការ Upload...' : (CURRENCY_LABEL[selectedGame] ? `Upload រូប ${CURRENCY_LABEL[selectedGame]} Logo` : 'Upload រូបពេជ្រធម្មតា (Normal Diamonds)')}</span>
                   <input 
                     type="file" 
                     accept="image/*" 
@@ -1376,7 +1404,7 @@ export default function AdminPage({ onBack }) {
                             className="w-full h-full object-contain"
                             onError={(e) => {
                               e.target.onerror = null;
-                              e.target.src = pkg.img || (selectedGame === 'free-fire' ? '/assets/diamonds/ff-diamond.png' : selectedGame === 'roblox' ? '/assets/diamonds/robux-gold.svg' : '/assets/diamonds/mlbb-diamond.png');
+                              e.target.src = pkg.img || getDefaultPackageIcon(selectedGame, pkg.code || pkg.id);
                             }}
                           />
                         </div>

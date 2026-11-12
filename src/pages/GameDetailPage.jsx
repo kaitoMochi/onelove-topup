@@ -3,7 +3,7 @@ import { createSecureOrder, generateBakongQR } from '../services/paylink';
 import { createSoraOrder, getSoraPackages, getSoraRobux, getSoraProfile } from '../services/sora';
 import { verifyPlayer } from '../services/playerCheck';
 import { getGameAsset, getCustomPrice, getPackageCustomIcon, isGameStockClosed, isPackageStockClosed } from '../services/adminSettings';
-import { formatFullPackageName } from '../data/games';
+import { formatFullPackageName, classifySoraPackage } from '../data/games';
 import BakongQRModal from '../components/BakongQRModal';
 
 export default function GameDetailPage({ game, currency, onBack }) {
@@ -175,6 +175,30 @@ export default function GameDetailPage({ game, currency, onBack }) {
               }
             });
 
+            setPackagesList(mapped);
+            setSelectedPackage(mapped[0]);
+          }
+        } else if (game.id !== 'free-fire' && game.soraCode) {
+          // PUBG Mobile / Blood Strike / Zepeto: all live packages from Sora by game code
+          const soraData = await getSoraPackages(game.soraCode);
+          if (isMounted && soraData && soraData.ok && soraData.packages?.length > 0) {
+            const mapped = soraData.packages.map(pkg => {
+              const code = String(pkg.code);
+              const info = classifySoraPackage(game.id, code, pkg.name);
+              const price = getCustomPrice(game.id, code, pkg.price);
+              return {
+                id: code,
+                code: code,
+                name: formatFullPackageName(game.id, code, pkg.name),
+                section: info.section,
+                sectionTitle: info.sectionTitle,
+                category: info.section,
+                price,
+                bonus: info.bonus,
+                points: `+${Math.max(1, Math.round(price))} ពិន្ទុ`,
+                img: getPackageCustomIcon(game.id, code, info.icon)
+              };
+            });
             setPackagesList(mapped);
             setSelectedPackage(mapped[0]);
           }
@@ -626,6 +650,9 @@ export default function GameDetailPage({ game, currency, onBack }) {
                           {game.id === 'free-fire' && (
                             <span>Player UID: <strong className="text-cyan-300 font-mono">{userId}</strong>{(playerData.region || playerData.country) ? <> • Server: <strong className="text-white">{playerData.region || playerData.country}</strong></> : null}{playerData.level ? <> • <strong className="text-emerald-400 font-mono">Lv.{playerData.level}</strong></> : null}</span>
                           )}
+                          {!['roblox', 'mobile-legends', 'free-fire'].includes(game.id) && (
+                            <span>{game.idPlaceholder || 'Player ID'}: <strong className="text-cyan-300 font-mono">{userId}</strong></span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -750,8 +777,8 @@ export default function GameDetailPage({ game, currency, onBack }) {
                   return pkg.section === activeCategory || pkg.category === activeCategory;
                 });
 
-                // Group by section maintaining order: diamonds -> weekly -> monthly -> subscriptions -> special
-                const secOrder = ['diamonds', 'weekly', 'monthly', 'subscriptions', 'special'];
+                // Group by section maintaining order: main currency first, then passes, then specials
+                const secOrder = ['diamonds', 'uc', 'gold', 'zems', 'coins', 'weekly', 'monthly', 'subscriptions', 'pass', 'prime', 'premium', 'deals', 'wow', 'packs', 'special'];
                 const groups = {};
                 visible.forEach(pkg => {
                   const s = pkg.section || 'diamonds';

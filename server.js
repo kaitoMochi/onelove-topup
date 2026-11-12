@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
-import { formatFullPackageName } from './src/data/games.js';
+import { formatFullPackageName, getSoraGameCode } from './src/data/games.js';
 import * as db from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -52,6 +52,84 @@ const SORA_CONFIG = {
 
 // Tracks orders currently being dispatched so concurrent client polls can't double-order.
 const dispatchingOrders = new Set();
+
+// Store game id (and accepted aliases) -> canonical store game id used for settings & prices.
+const GAME_KEY_ALIASES = {
+  'mobile-legends': 'mobile-legends', 'ml': 'mobile-legends',
+  'free-fire': 'free-fire', 'ff': 'free-fire',
+  'roblox': 'roblox', 'robux': 'roblox',
+  'pubg-mobile': 'pubg-mobile', 'pubgm': 'pubg-mobile',
+  'blood-strike': 'blood-strike', 'bloodstrike': 'blood-strike',
+  'zepeto': 'zepeto'
+};
+function normalizeGameKey(game) {
+  return GAME_KEY_ALIASES[String(game || '').trim().toLowerCase()] || null;
+}
+const GAME_LABELS = {
+  'mobile-legends': 'Mobile Legends',
+  'free-fire': 'Free Fire Mobile',
+  'roblox': 'Roblox (Robux)',
+  'pubg-mobile': 'PUBG Mobile',
+  'blood-strike': 'Blood Strike',
+  'zepeto': 'Zepeto'
+};
+
+const LOOKUP_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36';
+
+// GoPay Games account lookup (PUBG Mobile: code PUBG_ID, Zepeto: code ZEPETO).
+// Returns { found: true, name, country } | { found: false } (ID rejected) | { found: null } (lookup unavailable).
+async function lookupGopayAccount(code, userId, zoneId = '') {
+  try {
+    const r = await fetch('https://gopay.co.id/games/v1/order/user-account', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'User-Agent': LOOKUP_UA },
+      body: JSON.stringify({ code, data: { userId, zoneId } }),
+      signal: AbortSignal.timeout(8000)
+    });
+    const d = await r.json().catch(() => null);
+    if (r.ok && d && String(d.message || '').toLowerCase() === 'success' && d.data && d.data.username) {
+      // GoPay returns the name form-encoded (spaces as "+").
+      let name = String(d.data.username).replace(/\+/g, ' ');
+      try { name = decodeURIComponent(name); } catch (_) { }
+      return { found: true, name: name.trim(), country: d.data.countryOrigin || '' };
+    }
+    if (r.status === 404) return { found: false };
+    return { found: null };
+  } catch (e) {
+    console.warn(`[check-player] GoPay ${code} lookup error:`, e.message);
+    return { found: null };
+  }
+}
+
+// Blood Strike role lookup on NetEase's official top-up center (single server, host -1).
+async function lookupBloodStrikeRole(roleId) {
+  try {
+    const qs = new URLSearchParams({
+      deviceid: crypto.randomBytes(8).toString('hex'),
+      traceid: crypto.randomUUID(),
+      timestamp: String(Date.now()),
+      gc_client_version: '1.10.5',
+      roleid: roleId,
+      client_type: 'gameclub'
+    });
+    const r = await fetch(`https://pay.neteasegames.com/gameclub/bloodstrike/-1/login-role?${qs}`, {
+      headers: { 'Accept': 'application/json', 'User-Agent': LOOKUP_UA, 'Referer': 'https://pay.neteasegames.com/bloodstrike/topup' },
+      signal: AbortSignal.timeout(8000)
+    });
+    const d = await r.json().catch(() => null);
+    if (d && d.code === '0000' && d.data) {
+      const name = d.data.rolename || d.data.role_name || d.data.nickname || d.data.name || '';
+      return { found: true, name: String(name).trim(), level: d.data.level || d.data.role_level || null };
+    }
+    // 0206 = "role login failed": NetEase has no role with this ID.
+    if (d && d.code === '0206') return { found: false };
+    console.warn('[check-player] Blood Strike unexpected NetEase response:', r.status, d && d.code, d && d.msg);
+    return { found: null };
+  } catch (e) {
+    console.warn('[check-player] Blood Strike lookup error:', e.message);
+    return { found: null };
+  }
+}
 
 // Look up a Sora order (and its delivered Robux code) by its reference id.
 async function fetchSoraOrderByRef(ref) {
@@ -294,20 +372,22 @@ app.post('/api/admin/settings', async (req, res) => {
     const updatedSettings = {
       ...current,
       ...settings,
-      games: {
-        'mobile-legends': {
-          ...(current.games?.['mobile-legends'] || {}),
-          ...(settings?.games?.['mobile-legends'] || {})
-        },
-        'free-fire': {
-          ...(current.games?.['free-fire'] || {}),
-          ...(settings?.games?.['free-fire'] || {})
-        },
-        'roblox': {
-          ...(current.games?.['roblox'] || {}),
-          ...(settings?.games?.['roblox'] || {})
+      // Merge every game (not just the original three) so settings for newly added
+      // games (stock, closed packages, icons) are kept. Keys are restricted to safe ids.
+      games: (() => {
+        const merged = {};
+        const safeKey = (k) => /^[a-z0-9-]{1,40}$/.test(k);
+        const keys = new Set([
+          'mobile-legends', 'free-fire', 'roblox',
+          ...Object.keys(current.games || {}),
+          ...Object.keys(settings?.games || {})
+        ]);
+        for (const k of keys) {
+          if (!safeKey(k)) continue;
+          merged[k] = { ...(current.games?.[k] || {}), ...(settings?.games?.[k] || {}) };
         }
-      },
+        return merged;
+      })(),
       customPrices: {
         ...(current.customPrices || {}),
         ...(settings?.customPrices || {})
@@ -579,27 +659,24 @@ app.post('/api/orders/create', async (req, res) => {
     let officialPrice = 0;
     let packageName = packageCode;
 
-    if (game === 'mobile-legends' || game === 'ml') {
-      const soraPkgRes = await fetch(`${SORA_CONFIG.baseUrl}/packages?game=ml`, {
+    const gameKey = normalizeGameKey(game);
+    if (!gameKey) {
+      return res.status(400).json({ success: false, error: 'ហ្គេមនេះមិនទាន់គាំទ្រទេ (Unsupported game)' });
+    }
+    const soraGameCode = getSoraGameCode(gameKey);
+
+    if (soraGameCode) {
+      // Mobile Legends, Free Fire, PUBG Mobile, Blood Strike, Zepeto: live Sora price.
+      const soraPkgRes = await fetch(`${SORA_CONFIG.baseUrl}/packages?game=${encodeURIComponent(soraGameCode)}`, {
         headers: { 'Authorization': `Bearer ${SORA_CONFIG.apiKey}` }
       });
       const soraPkgData = await soraPkgRes.json();
       const found = soraPkgData.packages?.find(p => String(p.code) === String(packageCode));
       if (found) {
         officialPrice = Number(found.price);
-        packageName = formatFullPackageName('mobile-legends', found.code, found.name);
+        packageName = formatFullPackageName(gameKey, found.code, found.name);
       }
-    } else if (game === 'free-fire' || game === 'ff') {
-      const soraPkgRes = await fetch(`${SORA_CONFIG.baseUrl}/packages?game=ff`, {
-        headers: { 'Authorization': `Bearer ${SORA_CONFIG.apiKey}` }
-      });
-      const soraPkgData = await soraPkgRes.json();
-      const found = soraPkgData.packages?.find(p => String(p.code) === String(packageCode));
-      if (found) {
-        officialPrice = Number(found.price);
-        packageName = formatFullPackageName('free-fire', found.code, found.name);
-      }
-    } else if (game === 'roblox' || game === 'robux') {
+    } else if (gameKey === 'roblox') {
       try {
         const soraRobuxRes = await fetch(`${SORA_CONFIG.baseUrl}/robux/catalogue`, {
           headers: { 'Authorization': `Bearer ${SORA_CONFIG.apiKey}` }
@@ -629,7 +706,6 @@ app.post('/api/orders/create', async (req, res) => {
     }
 
     const currentSettings = await db.getSettings();
-    const gameKey = (game === 'ml' || game === 'mobile-legends') ? 'mobile-legends' : (game === 'ff' || game === 'free-fire' ? 'free-fire' : 'roblox');
 
     // Admin stock control: block checkout entirely when this game's stock is closed.
     if (currentSettings.games?.[gameKey]?.stockClosed) {
@@ -854,13 +930,21 @@ app.post('/api/orders/verify-and-dispatch', async (req, res) => {
         ? `${SORA_CONFIG.baseUrl}/robux/order`
         : `${SORA_CONFIG.baseUrl}/order`;
 
+      const soraGame = getSoraGameCode(normalizeGameKey(order.game));
+      if (!isRobux && !soraGame) {
+        throw new Error(`Unsupported game for dispatch: ${order.game}`);
+      }
       const soraPayload = isRobux ? {
         cardId: order.packageCode
       } : {
-        game: (order.game === 'mobile-legends' || order.game === 'ml') ? 'ml' : 'ff',
+        game: soraGame,
         code: order.packageCode,
         playerId: order.playerId,
-        ...(order.serverId ? { serverId: order.serverId } : {})
+        ...(order.serverId ? { serverId: order.serverId } : {}),
+        // Newer games: also send Sora's documented "fieldValues" (inputs in catalogue order).
+        ...((soraGame !== 'ml' && soraGame !== 'ff')
+          ? { fieldValues: order.serverId ? [order.playerId, order.serverId] : [order.playerId] }
+          : {})
       };
 
       const idempotencyKey = `ord_${order.orderId}`;
@@ -922,14 +1006,7 @@ app.post('/api/orders/verify-and-dispatch', async (req, res) => {
       });
 
       try {
-        const gameNames = {
-          'mobile-legends': 'Mobile Legends',
-          'ml': 'Mobile Legends',
-          'free-fire': 'Free Fire Mobile',
-          'ff': 'Free Fire Mobile',
-          'roblox': 'Roblox (Robux)'
-        };
-        const gName = gameNames[order.game] || order.game;
+        const gName = GAME_LABELS[normalizeGameKey(order.game)] || order.game;
         const phnomPenhTime = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Phnom_Penh' });
 
         let deliveryLine;
@@ -1044,7 +1121,7 @@ app.post('/api/payment/check', async (req, res) => {
   }
 });
 
-// Check player name in real-time across MLBB, Free Fire, and Roblox
+// Check player name in real-time across MLBB, Free Fire, Roblox, PUBG Mobile, Blood Strike and Zepeto
 app.post('/api/check-player', async (req, res) => {
   try {
     const { game, userId, zoneId } = req.body || {};
@@ -1234,6 +1311,46 @@ app.post('/api/check-player', async (req, res) => {
       return res.json({
         success: false,
         error: 'រកមិនឃើញគណនី Roblox នេះទេ! សូមពិនិត្យមើល Roblox Username ឡើងវិញ'
+      });
+    }
+
+    // 4. PUBG Mobile / Blood Strike / Zepeto -> Player ID
+    const newGameKey = normalizeGameKey(game);
+    if (newGameKey === 'pubg-mobile' || newGameKey === 'blood-strike' || newGameKey === 'zepeto') {
+      const label = GAME_LABELS[newGameKey];
+      let result;
+      if (newGameKey === 'pubg-mobile') {
+        result = await lookupGopayAccount('PUBG_ID', uid);
+      } else if (newGameKey === 'zepeto') {
+        result = await lookupGopayAccount('ZEPETO', uid);
+      } else {
+        result = await lookupBloodStrikeRole(uid);
+      }
+
+      if (result.found) {
+        const ign = result.name || uid;
+        const info = {
+          username: ign,
+          displayName: ign,
+          id: uid,
+          userId: uid,
+          zone: '',
+          country: result.country || 'Global',
+          level: result.level || null
+        };
+        return res.json({ success: true, ...info, data: info });
+      }
+
+      if (result.found === false) {
+        return res.json({
+          success: false,
+          error: `រកមិនឃើញគណនី ${label} នេះទេ! សូមពិនិត្យមើល ID ឡើងវិញ`
+        });
+      }
+
+      return res.json({
+        success: false,
+        error: `មិនអាចផ្ទៀងផ្ទាត់គណនី ${label} បាននៅពេលនេះទេ សូមព្យាយាមម្តងទៀតបន្តិចទៀត`
       });
     }
 

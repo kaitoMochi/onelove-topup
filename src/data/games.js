@@ -62,7 +62,83 @@ export function formatFullPackageName(gameId, code, soraName = '') {
     return robuxMap[codeStr] || soraName || `${codeStr} Robux`;
   }
 
+  if (gameId === 'pubg-mobile' || gameId === 'pubgm') {
+    if (/^\d+$/.test(codeStr)) return `${Number(codeStr).toLocaleString('en-US')} UC`;
+    const wc = codeLower.match(/^(\d+)wc$/);
+    if (wc) return `${Number(wc[1]).toLocaleString('en-US')} WOW Coins`;
+    return soraName || codeStr;
+  }
+
+  if (gameId === 'blood-strike' || gameId === 'bloodstrike') {
+    if (/^\d+$/.test(codeStr)) return `${Number(codeStr).toLocaleString('en-US')} Gold`;
+    const deal = codeLower.match(/^(\d)(\d{2})deal$/);
+    if (deal) return `Deal Pack $${deal[1]}.${deal[2]}`;
+    return soraName || codeStr;
+  }
+
+  if (gameId === 'zepeto') {
+    const zems = codeLower.match(/^(\d+)z$/);
+    if (zems) return `${Number(zems[1]).toLocaleString('en-US')} ZEMS`;
+    const coins = codeLower.match(/^(\d+)c$/);
+    if (coins) return `${Number(coins[1]).toLocaleString('en-US')} Coins`;
+    if (codeLower === 'p1') return 'Premium (1 Month)';
+    return soraName || codeStr;
+  }
+
   return soraName || codeStr;
+}
+
+// Sora "game" codes for games sold through the standard /packages + /order API.
+export const SORA_GAME_CODES = {
+  'mobile-legends': 'ml',
+  'free-fire': 'ff',
+  'pubg-mobile': 'pubgm',
+  'blood-strike': 'bloodstrike',
+  'zepeto': 'zepeto'
+};
+
+export function getSoraGameCode(gameId) {
+  return SORA_GAME_CODES[gameId] || null;
+}
+
+// Section, title and default icon for a live Sora package of PUBG Mobile, Blood Strike and Zepeto.
+export function classifySoraPackage(gameId, code, soraName = '') {
+  const c = String(code || '').trim().toLowerCase();
+  const n = String(soraName || '').toLowerCase();
+
+  if (gameId === 'pubg-mobile' || gameId === 'pubgm') {
+    const cover = '/games/pubg-mobile.webp';
+    if (/^\d+$/.test(c)) return { section: 'uc', sectionTitle: 'UC', bonus: 'Unknown Cash', icon: '/assets/diamonds/pubg-uc.svg' };
+    if (/^\d+wc$/.test(c)) return { section: 'wow', sectionTitle: 'WOW Coins', bonus: 'WOW Coins', icon: '/assets/diamonds/pubg-uc.svg' };
+    if (/^epp?l\d+$/.test(c) || n.includes('elite pass')) return { section: 'pass', sectionTitle: 'Elite Pass', bonus: 'Elite Pass', icon: cover };
+    if (/^pp?\d+m$/.test(c) || n.includes('prime')) return { section: 'prime', sectionTitle: 'Prime & Prime Plus', bonus: 'Prime', icon: cover };
+    return { section: 'packs', sectionTitle: 'Packs & Deals', bonus: 'Special Pack', icon: cover };
+  }
+
+  if (gameId === 'blood-strike' || gameId === 'bloodstrike') {
+    const cover = '/games/blood-strike.png';
+    if (/^\d+$/.test(c)) return { section: 'gold', sectionTitle: 'Gold', bonus: 'Gold', icon: '/assets/diamonds/bloodstrike-gold.svg' };
+    if (/^\d{3}deal$/.test(c)) return { section: 'deals', sectionTitle: 'Deal Packs', bonus: 'Deal Pack', icon: '/assets/diamonds/bloodstrike-gold.svg' };
+    if (['sp', 'spe', 'spp', 'lup'].includes(c) || n.includes('pass')) return { section: 'pass', sectionTitle: 'Passes', bonus: 'Pass', icon: cover };
+    return { section: 'special', sectionTitle: 'Special Items', bonus: 'Special Item', icon: cover };
+  }
+
+  if (gameId === 'zepeto') {
+    if (/^\d+z$/.test(c)) return { section: 'zems', sectionTitle: 'ZEMS', bonus: 'ZEMS', icon: '/assets/diamonds/zepeto-zem.svg' };
+    if (/^\d+c$/.test(c)) return { section: 'coins', sectionTitle: 'Coins', bonus: 'Coins', icon: '/assets/diamonds/zepeto-coin.svg' };
+    if (c.startsWith('p') || n.includes('premium')) return { section: 'premium', sectionTitle: 'Premium', bonus: 'Premium', icon: '/games/zepeto.webp' };
+    return { section: 'special', sectionTitle: 'Packages', bonus: 'Package', icon: '/games/zepeto.webp' };
+  }
+
+  return { section: 'special', sectionTitle: 'Packages', bonus: 'Package', icon: '/assets/diamonds/diamond-single.png' };
+}
+
+// Default package icon for a game (used when the admin has not uploaded one).
+export function getDefaultPackageIcon(gameId, code = '') {
+  if (gameId === 'roblox') return '/assets/diamonds/robux-gold.svg';
+  if (gameId === 'free-fire') return '/assets/diamonds/ff-diamond.png';
+  if (gameId === 'mobile-legends') return '/assets/diamonds/mlbb-diamond.png';
+  return classifySoraPackage(gameId, code).icon;
 }
 
 export const ALLOWED_ROBUX_CODES = [
@@ -79,6 +155,7 @@ export const ALLOWED_ROBUX_CODES = [
 export const GAMES = [
   {
     id: 'mobile-legends',
+    soraCode: 'ml',
     name: 'Mobile Legends',
     khmerName: 'ម៉ូបាល លេជែន',
     slug: 'mobile-legends',
@@ -142,6 +219,7 @@ export const GAMES = [
   },
   {
     id: 'free-fire',
+    soraCode: 'ff',
     name: 'Free Fire Mobile',
     khmerName: 'ហ្គារីណា ហ្វ្រី ហ្វាយ',
     slug: 'free-fire',
@@ -238,5 +316,74 @@ export const GAMES = [
       { id: '5250_robux', code: '5250_robux', name: '5,250 Robux Code', section: 'diamonds', sectionTitle: 'Digital Robux Codes', category: 'diamonds', price: 48.11, bonus: 'កូដឌីជីថល VIP', points: '+48 ពិន្ទុ', img: '/assets/diamonds/robux-card.png' },
       { id: '11000_robux', code: '11000_robux', name: '11,000 Robux Code', section: 'diamonds', sectionTitle: 'Digital Robux Codes', category: 'diamonds', price: 95.90, bonus: 'កូដឌីជីថល VIP', points: '+96 ពិន្ទុ', img: '/assets/diamonds/robux-card.png' }
     ]
+  },
+  {
+    id: 'pubg-mobile',
+    soraCode: 'pubgm',
+    name: 'PUBG Mobile',
+    khmerName: 'ផាប់ជី ម៉ូបាល — បញ្ចូល UC ភ្លាមៗ',
+    slug: 'pubg-mobile',
+    image: '/games/pubg-mobile.webp',
+    banner: '/games/pubg-mobile.webp',
+    tag: 'NEW',
+    needsZone: false,
+    idPlaceholder: 'Player ID (UID)',
+    guideImage: null,
+    defaultIcon: '/assets/diamonds/pubg-uc.svg',
+    categories: [
+      { id: 'all', name: '✨ ទាំងអស់ (All)' },
+      { id: 'uc', name: '💰 UC' },
+      { id: 'pass', name: '🎫 Elite Pass' },
+      { id: 'prime', name: '👑 Prime' },
+      { id: 'wow', name: '🪙 WOW Coins' },
+      { id: 'packs', name: '🎁 Packs & Deals' }
+    ],
+    // Packages and prices load live from Sora (game code "pubgm").
+    packages: []
+  },
+  {
+    id: 'blood-strike',
+    soraCode: 'bloodstrike',
+    name: 'Blood Strike',
+    khmerName: 'ប្លាដ ស្ត្រាយ — បញ្ចូល Gold ភ្លាមៗ',
+    slug: 'blood-strike',
+    image: '/games/blood-strike.png',
+    banner: '/games/blood-strike.png',
+    tag: 'NEW',
+    needsZone: false,
+    idPlaceholder: 'Player ID (UID)',
+    guideImage: null,
+    defaultIcon: '/assets/diamonds/bloodstrike-gold.svg',
+    categories: [
+      { id: 'all', name: '✨ ទាំងអស់ (All)' },
+      { id: 'gold', name: '🪙 Gold' },
+      { id: 'deals', name: '🏷️ Deal Packs' },
+      { id: 'pass', name: '🎫 Passes' },
+      { id: 'special', name: '🎁 Special Items' }
+    ],
+    // Packages and prices load live from Sora (game code "bloodstrike").
+    packages: []
+  },
+  {
+    id: 'zepeto',
+    soraCode: 'zepeto',
+    name: 'Zepeto',
+    khmerName: 'ហ្សេប៉េតូ — បញ្ចូល ZEMS & Coins',
+    slug: 'zepeto',
+    image: '/games/zepeto.webp',
+    banner: '/games/zepeto.webp',
+    tag: 'NEW',
+    needsZone: false,
+    idPlaceholder: 'ZEPETO ID',
+    guideImage: null,
+    defaultIcon: '/assets/diamonds/zepeto-zem.svg',
+    categories: [
+      { id: 'all', name: '✨ ទាំងអស់ (All)' },
+      { id: 'zems', name: '💎 ZEMS' },
+      { id: 'coins', name: '🪙 Coins' },
+      { id: 'premium', name: '👑 Premium' }
+    ],
+    // Packages and prices load live from Sora (game code "zepeto").
+    packages: []
   }
 ];

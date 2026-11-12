@@ -1,4 +1,6 @@
 // Admin settings manager for game assets, custom prices & background removal
+import { classifySoraPackage } from '../data/games';
+
 const STORAGE_KEY = 'onelove_admin_settings_v1';
 
 const DEFAULT_SETTINGS = {
@@ -28,10 +30,34 @@ const DEFAULT_SETTINGS = {
       coverImage: '/games/roblox-cover.jpg',
       diamondIcon: '/assets/diamonds/robux-gold.svg',
       customTitle: 'Roblox (Robux)'
+    },
+    'pubg-mobile': {
+      coverImage: '/games/pubg-mobile.webp',
+      diamondIcon: '/assets/diamonds/pubg-uc.svg',
+      customTitle: 'PUBG Mobile'
+    },
+    'blood-strike': {
+      coverImage: '/games/blood-strike.png',
+      diamondIcon: '/assets/diamonds/bloodstrike-gold.svg',
+      customTitle: 'Blood Strike'
+    },
+    'zepeto': {
+      coverImage: '/games/zepeto.webp',
+      diamondIcon: '/assets/diamonds/zepeto-zem.svg',
+      customTitle: 'Zepeto'
     }
   },
   customPrices: {}
 };
+
+// Every game key known locally or present in a settings object.
+function allGameKeys(...gameMaps) {
+  const keys = new Set(Object.keys(DEFAULT_SETTINGS.games));
+  for (const m of gameMaps) {
+    if (m && typeof m === 'object') Object.keys(m).forEach(k => keys.add(k));
+  }
+  return [...keys];
+}
 
 /**
  * High-Security Anti-Replay Challenge-Response Envelope Generator:
@@ -108,14 +134,14 @@ export function getAdminSettings() {
     if (parsed.games?.['mobile-legends']?.weeklyPassIcon?.includes('pass-card.png')) {
       parsed.games['mobile-legends'].weeklyPassIcon = '/assets/diamonds/mlbb-weekly-pass.svg';
     }
+    const mergedGames = {};
+    for (const key of allGameKeys(parsed.games)) {
+      mergedGames[key] = { ...(DEFAULT_SETTINGS.games[key] || {}), ...(parsed.games?.[key] || {}) };
+    }
     cachedSettings = {
       ...DEFAULT_SETTINGS,
       ...parsed,
-      games: {
-        'mobile-legends': { ...DEFAULT_SETTINGS.games['mobile-legends'], ...(parsed.games?.['mobile-legends'] || {}) },
-        'free-fire': { ...DEFAULT_SETTINGS.games['free-fire'], ...(parsed.games?.['free-fire'] || {}) },
-        'roblox': { ...DEFAULT_SETTINGS.games['roblox'], ...(parsed.games?.['roblox'] || {}) },
-      },
+      games: mergedGames,
       customPrices: {
         ...(DEFAULT_SETTINGS.customPrices || {}),
         ...(parsed.customPrices || {})
@@ -167,14 +193,14 @@ export async function syncAdminSettingsWithServer() {
       const data = await res.json();
       if (data && data.success && data.settings) {
         const local = getAdminSettings();
+        const syncedGames = {};
+        for (const key of allGameKeys(data.settings.games, local.games)) {
+          syncedGames[key] = mergeGameConfig(DEFAULT_SETTINGS.games[key] || {}, data.settings.games?.[key], local.games?.[key]);
+        }
         const merged = {
           ...DEFAULT_SETTINGS,
           ...data.settings,
-          games: {
-            'mobile-legends': mergeGameConfig(DEFAULT_SETTINGS.games['mobile-legends'], data.settings.games?.['mobile-legends'], local.games?.['mobile-legends']),
-            'free-fire': mergeGameConfig(DEFAULT_SETTINGS.games['free-fire'], data.settings.games?.['free-fire'], local.games?.['free-fire']),
-            'roblox': mergeGameConfig(DEFAULT_SETTINGS.games['roblox'], data.settings.games?.['roblox'], local.games?.['roblox']),
-          },
+          games: syncedGames,
           customPrices: {
             ...(DEFAULT_SETTINGS.customPrices || {}),
             ...(local.customPrices || {}),
@@ -311,7 +337,14 @@ export function getPackageCustomIcon(gameId, code, defaultFallback = '') {
     return cfg.diamondIcon || defaultFallback || '/assets/diamonds/robux-gold.svg';
   }
 
-  return defaultFallback;
+  // PUBG Mobile / Blood Strike / Zepeto: the admin "currency" icon applies to the
+  // main currency packages (UC, Gold, ZEMS); other items keep their own icon.
+  const pkgInfo = classifySoraPackage(gameId, codeStr);
+  const currencySections = ['uc', 'wow', 'gold', 'deals', 'zems'];
+  if (currencySections.includes(pkgInfo.section) && cfg.diamondIcon) {
+    return cfg.diamondIcon;
+  }
+  return defaultFallback || pkgInfo.icon;
 }
 
 /**
