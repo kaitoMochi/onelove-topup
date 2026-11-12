@@ -19,7 +19,8 @@ export default function BakongQRModal({ paymentData, playerInfo, orderResult, cu
   const [copied, setCopied] = useState(false);
   const [successResult, setSuccessResult] = useState(null); // full verify-and-dispatch response
   const [paidAt, setPaidAt] = useState(null);
-  const [paidPending, setPaidPending] = useState(false); // paid, but Robux code still being delivered
+  const [paidPending, setPaidPending] = useState(false); // paid, but delivery (Robux code or game top-up) still in progress
+  const [slowDelivery, setSlowDelivery] = useState(false); // delivery still running after 60 seconds
 
   useEffect(() => {
     if (!paymentData?.qrString) return;
@@ -59,7 +60,7 @@ export default function BakongQRModal({ paymentData, playerInfo, orderResult, cu
               : (res.dispatchOk === false ? 'failed' : 'delivered'));
 
           if (deliv === 'processing') {
-            // Paid, but the Robux code is still being generated — keep polling.
+            // Paid, but Sora has not finished delivering yet (Robux code or game top-up). Keep polling.
             setPaidPending(true);
           } else {
             setPaidPending(false);
@@ -87,6 +88,13 @@ export default function BakongQRModal({ paymentData, playerInfo, orderResult, cu
 
     return () => clearInterval(interval);
   }, [paymentData?.tranId, paymentStatus, onSuccess]);
+
+  // After 60 seconds of delivery in progress, tell the customer it can take longer.
+  useEffect(() => {
+    if (!paidPending) return;
+    const t = setTimeout(() => setSlowDelivery(true), 60000);
+    return () => clearTimeout(t);
+  }, [paidPending]);
 
   useEffect(() => {
     if (paymentStatus !== 'PENDING' || paidPending) return;
@@ -314,9 +322,29 @@ export default function BakongQRModal({ paymentData, playerInfo, orderResult, cu
               <h3 className="text-lg font-extrabold text-emerald-400">ទទួលប្រាក់ជោគជ័យ! (Payment Received)</h3>
               <div className="mt-4 flex items-center gap-2 text-amber-300 text-sm font-bold">
                 <span className="animate-spin text-xl">⏳</span>
-                <span>កំពុងបញ្ជូនកូដ Robux...</span>
+                <span>{isRoblox ? 'កំពុងបញ្ជូនកូដ Robux...' : 'កំពុងបញ្ចូលទៅគណនីរបស់អ្នក... (Delivering)'}</span>
               </div>
-              <p className="text-[11px] text-gray-400 mt-2 px-5">សូមរង់ចាំបន្តិច — កំពុងយកកូដ Robux ពី Sora។ សូមកុំបិទទំព័រនេះ។</p>
+              <p className="text-[11px] text-gray-400 mt-2 px-5">
+                {isRoblox
+                  ? 'សូមរង់ចាំបន្តិច — កំពុងយកកូដ Robux ពី Sora។ សូមកុំបិទទំព័រនេះ។'
+                  : 'ការបញ្ជាទិញកំពុងដំណើរការ។ ទំព័រនេះនឹងបង្ហាញលទ្ធផលពិត (ជោគជ័យ ឬបរាជ័យ) ភ្លាមៗពេលបញ្ចប់។'}
+              </p>
+              {slowDelivery && (
+                <div className="mt-4 mx-3 p-3 rounded-xl bg-amber-950/50 border border-amber-500/40 text-[11px] text-amber-100 text-left space-y-1.5">
+                  <div>ការបញ្ចូលនេះចំណាយពេលយូរជាងធម្មតា។ អ្នកអាចបិទទំព័រនេះបាន ប្រព័ន្ធនៅតែតាមដានការបញ្ជាទិញរបស់អ្នក។</div>
+                  <div>This top-up is taking longer than usual. You can close this page; we keep tracking your order.</div>
+                  <div>បើមិនទទួលបានក្នុង ៣០ នាទី សូមទាក់ទងយើងតាម Telegram ជាមួយ Tran ID:</div>
+                  <div className="font-mono text-cyan-300 select-all">{paymentData?.tranId}</div>
+                  <a
+                    href="https://t.me/+ZObn61iNEVM3ZGU1"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block mt-1 px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold"
+                  >
+                    Telegram Support
+                  </a>
+                </div>
+              )}
             </div>
           ) : (
             <>

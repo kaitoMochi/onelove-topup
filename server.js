@@ -182,6 +182,139 @@ async function sendTelegramMessage(chatId, text, parseMode = 'Markdown') {
   }
 }
 
+// --- GAME ORDER DELIVERY TRACKING (ML, FF, PUBG Mobile, Blood Strike, Zepeto) ---
+// Sora answers POST /order with ok:true + status "Processing" when it ACCEPTS an
+// order. That is not delivery: the item reaches the player only when the order
+// status becomes "Success". These helpers follow the real status by Sora ref.
+
+// delivered | processing | failed
+function classifySoraDelivery(obj) {
+  if (!obj) return 'processing';
+  if (obj.ok === false) return 'failed';
+  const st = String(obj.status || '').trim().toLowerCase();
+  if (['success', 'completed', 'delivered'].includes(st)) return 'delivered';
+  if (['failed', 'fail', 'error', 'refunded', 'refund', 'cancelled', 'canceled', 'rejected'].includes(st)) return 'failed';
+  return 'processing';
+}
+
+function soraRefOf(obj) {
+  return (obj && (obj.refid || obj.ref || obj.refId)) || '';
+}
+
+// Same as classifySoraDelivery, but an order without a ref cannot be tracked,
+// so fall back to Sora's accept flag instead of waiting forever.
+function gameDeliveryState(obj) {
+  const state = classifySoraDelivery(obj);
+  if (state === 'processing' && !soraRefOf(obj)) return obj && obj.ok ? 'delivered' : 'failed';
+  return state;
+}
+
+// Status of one game order (Sora docs: GET /order?ref=...). Null when the lookup fails.
+async function fetchSoraGameOrder(ref) {
+  if (!ref) return null;
+  try {
+    const r = await fetch(`${SORA_CONFIG.baseUrl}/order?ref=${encodeURIComponent(ref)}`, {
+      headers: { 'Authorization': `Bearer ${SORA_CONFIG.apiKey}` },
+      signal: AbortSignal.timeout(10000)
+    });
+    const d = await r.json().catch(() => null);
+    return (r.ok && d && d.ok !== false) ? d : null;
+  } catch (e) {
+    console.warn('[sora] order status lookup error:', e.message);
+    return null;
+  }
+}
+
+// Remove characters that break Telegram Markdown.
+function mdSafe(v) {
+  return String(v ?? '').replace(/[_*`\[\]]/g, ' ').trim();
+}
+
+function sendDeliveryAlert(order, state, data) {
+  const gName = GAME_LABELS[normalizeGameKey(order.game)] || order.game;
+  const time = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Phnom_Penh' });
+  const msg = (state === 'delivered'
+      ? '✅ *បញ្ជូនជោគជ័យ (DELIVERED)*\n'
+      : '❌ *បញ្ជូនបរាជ័យ (DELIVERY FAILED)*\n') +
+    `━━━━━━━━━━━━━━━━━━━━━━\n` +
+    `🎮 *Game:* ${gName}\n` +
+    `💎 *Package:* ${mdSafe(order.packageName)}\n` +
+    `💵 *Amount:* $${Number(order.amount).toFixed(2)} (${order.currency})\n` +
+    `🆔 *User ID:* \`${mdSafe(order.playerId)}\`\n` +
+    (order.serverId ? `🌐 *Zone ID:* \`${mdSafe(order.serverId)}\`\n` : '') +
+    `🧾 *Tran ID:* \`${order.tranId}\`\n` +
+    `🔖 *Sora Ref:* \`${soraRefOf(data)}\`\n` +
+    (state === 'failed'
+      ? `⚠️ *Reason:* ${mdSafe(data.reason || data.msg || data.error || 'unknown')}\n💸 Customer already paid. Refund or top up manually.\n`
+      : '') +
+    `⏰ *Time:* ${time}`;
+  sendTelegramMessage(TELEGRAM_CONFIG.groupId, msg).catch(() => { });
+  for (const adminId of TELEGRAM_CONFIG.adminChatIds) {
+    sendTelegramMessage(adminId, msg).catch(() => { });
+  }
+}
+
+const lastSoraCheckAt = new Map(); // orderId -> time of the last Sora status check
+const resolvingOrders = new Set(); // orderIds being re-checked right now
+
+// Re-check a dispatched game order that Sora still has as "Processing".
+// Saves the new status. Sends a Telegram alert when the order fails, or when an
+// order that was reported as PROCESSING gets delivered.
+async function refreshGameDelivery(orderId) {
+  if (!orderId || resolvingOrders.has(orderId)) return null;
+  if (Date.now() - (lastSoraCheckAt.get(orderId) || 0) < 10000) return null; // max 1 Sora call / order / 10s
+  resolvingOrders.add(orderId);
+  try {
+    const order = await db.getOrder(orderId);
+    if (!order) return null;
+    const stored = order.soraResult || {};
+    if (classifySoraDelivery(stored) !== 'processing') return order;
+    const ref = soraRefOf(stored);
+    if (!ref) return order;
+
+    lastSoraCheckAt.set(orderId, Date.now());
+    const latest = await fetchSoraGameOrder(ref);
+    if (!latest) return order;
+
+    const merged = { ...stored, ...latest };
+    const state = classifySoraDelivery(merged);
+    if (state === 'processing') {
+      if (order.status !== 'PROCESSING') {
+        await db.updateOrder(order.orderId, { status: 'PROCESSING', soraResult: merged });
+      }
+      return { ...order, status: 'PROCESSING', soraResult: merged };
+    }
+
+    const newStatus = state === 'delivered' ? 'SUCCESS' : 'FAILED';
+    const wasProcessing = order.status === 'PROCESSING';
+    await db.updateOrder(order.orderId, { status: newStatus, soraResult: merged });
+    lastSoraCheckAt.delete(orderId);
+    if (state === 'failed' || wasProcessing) {
+      sendDeliveryAlert(order, state, merged);
+    }
+    return { ...order, status: newStatus, soraResult: merged };
+  } finally {
+    resolvingOrders.delete(orderId);
+  }
+}
+
+// Every minute, follow up on game orders that are still "Processing" at Sora,
+// so the admin gets the final result even after the customer closes the page.
+async function sweepProcessingOrders() {
+  try {
+    const recent = await db.getRecentOrders(100);
+    const cutoff = Date.now() - 48 * 60 * 60 * 1000;
+    for (const o of recent) {
+      if (!o || !o.dispatched || Number(o.createdAt) < cutoff) continue;
+      if (normalizeGameKey(o.game) === 'roblox') continue;
+      if (classifySoraDelivery(o.soraResult) !== 'processing' || !soraRefOf(o.soraResult)) continue;
+      await refreshGameDelivery(o.orderId);
+    }
+  } catch (e) {
+    console.warn('[sweep] processing orders error:', e.message);
+  }
+}
+
 const SETTINGS_FILE = path.resolve(__dirname, 'admin-settings.json');
 
 async function getSavedSettings() {
@@ -844,18 +977,23 @@ app.post('/api/orders/verify-and-dispatch', async (req, res) => {
           await db.updateOrder(order.orderId, code ? { soraResult: stored, status: 'SUCCESS' } : { soraResult: stored });
         }
       }
-      const prevOk = isRobuxPrev
-        ? !!code
-        : !!(stored && (stored.ok || String(stored.status || '').toLowerCase() === 'success' || stored.order_id || stored.orderId));
-      let delivery;
-      if (prevOk) {
-        delivery = 'delivered';
-      } else if (isRobuxPrev) {
-        const st = String(stored.status || '').toLowerCase();
-        delivery = (st === 'failed' || st === 'error' || stored.ok === false) ? 'failed' : 'processing';
-      } else {
-        delivery = 'failed';
+      // Game orders: re-check Sora while it still reports "Processing".
+      if (!isRobuxPrev) {
+        const refreshed = await refreshGameDelivery(order.orderId);
+        if (refreshed && refreshed.soraResult) stored = refreshed.soraResult;
       }
+      let delivery;
+      if (isRobuxPrev) {
+        if (code) {
+          delivery = 'delivered';
+        } else {
+          const st = String(stored.status || '').toLowerCase();
+          delivery = (st === 'failed' || st === 'error' || stored.ok === false) ? 'failed' : 'processing';
+        }
+      } else {
+        delivery = gameDeliveryState(stored);
+      }
+      const prevOk = delivery === 'delivered';
       return res.json({
         success: true,
         paid: true,
@@ -982,24 +1120,36 @@ app.post('/api/orders/verify-and-dispatch', async (req, res) => {
         soraData = { ...soraData, code: robuxCode, status: 'Success' };
       }
 
-      const isDispatchOk = isRobux
-        ? !!robuxCode
-        : !!(soraData && (soraData.ok || String(soraData.status || '').toLowerCase() === 'success' || soraData.order_id || soraData.orderId));
+      // Game orders: Sora usually answers "Processing" (accepted, not delivered yet).
+      // Wait briefly for fast deliveries; slower ones are followed up afterwards.
+      if (!isRobux && soraData.ok !== false && soraRef && classifySoraDelivery(soraData) === 'processing') {
+        for (let i = 0; i < 3; i++) {
+          await new Promise(r => setTimeout(r, 2000));
+          const latest = await fetchSoraGameOrder(soraRef);
+          if (latest) {
+            soraData = { ...soraData, ...latest };
+            if (classifySoraDelivery(soraData) !== 'processing') break;
+          }
+        }
+      }
 
       let delivery;
-      if (isDispatchOk) {
-        delivery = 'delivered';
-      } else if (isRobux) {
-        const st = String(soraData.status || '').toLowerCase();
-        delivery = (st === 'failed' || st === 'error' || soraData.ok === false) ? 'failed' : 'processing';
+      if (isRobux) {
+        if (robuxCode) {
+          delivery = 'delivered';
+        } else {
+          const st = String(soraData.status || '').toLowerCase();
+          delivery = (st === 'failed' || st === 'error' || soraData.ok === false) ? 'failed' : 'processing';
+        }
       } else {
-        delivery = 'failed';
+        delivery = gameDeliveryState(soraData);
       }
+      const isDispatchOk = delivery === 'delivered';
 
       order.dispatched = true;
       order.soraResult = soraData;
       await db.updateOrder(order.orderId, {
-        status: isDispatchOk ? 'SUCCESS' : 'SUBMITTED',
+        status: delivery === 'delivered' ? 'SUCCESS' : (delivery === 'processing' ? 'PROCESSING' : 'FAILED'),
         verifiedPaid: true,
         dispatched: true,
         soraResult: soraData
@@ -1014,8 +1164,12 @@ app.post('/api/orders/verify-and-dispatch', async (req, res) => {
           deliveryLine = robuxCode
             ? `🧩 *Robux Code:* \`${robuxCode}\`\n`
             : `⏳ *Robux:* Processing — code pending${soraRef ? ` (ref: \`${soraRef}\`)` : ''}, check Sora panel\n`;
+        } else if (delivery === 'delivered') {
+          deliveryLine = `⚡ *Sora Dispatch:* ✅ SUCCESS (បញ្ចូលស្វ័យប្រវត្តិ)\n`;
+        } else if (delivery === 'processing') {
+          deliveryLine = `⏳ *Sora:* PROCESSING, not delivered yet (ref: \`${soraRef}\`). Another alert follows when it finishes.\n`;
         } else {
-          deliveryLine = `⚡ *Sora Dispatch:* ${isDispatchOk ? '✅ SUCCESS (បញ្ចូលស្វ័យប្រវត្តិ)' : '⚠️ ' + (soraData?.error || soraData?.message || soraData?.reason || 'SUBMITTED')}\n`;
+          deliveryLine = `❌ *Sora:* FAILED: ${mdSafe(soraData?.error || soraData?.msg || soraData?.message || soraData?.reason || 'unknown')}. Customer paid. Refund or top up manually.\n`;
         }
 
         const alertMsg = `🔔 *ការទូទាត់ជោគជ័យ (NEW SUCCESSFUL PAYMENT)* 🔔\n` +
@@ -1384,6 +1538,9 @@ app.use((req, res) => {
 
 app.listen(PORT, '0.0.0.0', async () => {
   await db.initDb();
+  // Follow up on game orders still "Processing" at Sora (first run now, then every minute).
+  sweepProcessingOrders();
+  setInterval(sweepProcessingOrders, 60 * 1000);
   console.log(`🚀 ONE LOVE TOPUP Production Server running on port ${PORT}`);
 });
 

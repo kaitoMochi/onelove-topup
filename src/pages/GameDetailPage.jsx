@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { createSecureOrder, generateBakongQR } from '../services/paylink';
+import { createSecureOrder } from '../services/paylink';
 import { createSoraOrder, getSoraPackages, getSoraRobux, getSoraProfile } from '../services/sora';
 import { verifyPlayer } from '../services/playerCheck';
 import { getGameAsset, getCustomPrice, getPackageCustomIcon, isGameStockClosed, isPackageStockClosed } from '../services/adminSettings';
@@ -387,13 +387,10 @@ export default function GameDetailPage({ game, currency, onBack }) {
       });
       setPaymentData(result);
     } catch (err) {
-      // Fallback to direct Bakong QR if needed
-      try {
-        const fallbackRes = await generateBakongQR(selectedPackage.price, currency);
-        setPaymentData(fallbackRes);
-      } catch (e2) {
-        setErrorMessage(err.message || 'Error creating payment link. Please try again.');
-      }
+      // Do NOT fall back to a bare Bakong QR here. That QR has no order behind it,
+      // so a customer could pay and receive nothing. Show the real error instead.
+      setErrorMessage(err.message || 'មិនអាចបង្កើតការបញ្ជាទិញបានទេ សូមព្យាយាមម្តងទៀត (Could not create the order. Please try again.)');
+      window.scrollTo({ top: 120, behavior: 'smooth' });
     } finally {
       setIsGeneratingQR(false);
     }

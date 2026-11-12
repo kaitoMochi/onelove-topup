@@ -1496,11 +1496,21 @@ export default function AdminPage({ onBack }) {
                         <span>•</span>
                         <span>{ord.packageName}</span>
                         <span className={`text-[10px] px-1.5 py-0.5 rounded font-black ${
-                          ord.dispatched || ord.status === 'SUCCESS' 
-                            ? 'bg-emerald-950 text-emerald-400 border border-emerald-500/40' 
-                            : (ord.verifiedPaid ? 'bg-cyan-950 text-cyan-400 border border-cyan-500/40' : 'bg-amber-950 text-amber-400 border border-amber-500/40')
+                          ord.status === 'FAILED'
+                            ? 'bg-red-950 text-red-400 border border-red-500/40'
+                            : (ord.status === 'PROCESSING' || ord.status === 'SUBMITTED')
+                              ? 'bg-amber-950 text-amber-300 border border-amber-500/40'
+                              : (ord.dispatched || ord.status === 'SUCCESS')
+                                ? 'bg-emerald-950 text-emerald-400 border border-emerald-500/40'
+                                : (ord.verifiedPaid ? 'bg-cyan-950 text-cyan-400 border border-cyan-500/40' : 'bg-amber-950 text-amber-400 border border-amber-500/40')
                         }`}>
-                          {ord.dispatched ? 'DISPATCHED' : (ord.verifiedPaid ? 'PAID' : (ord.status || 'PENDING'))}
+                          {ord.status === 'FAILED'
+                            ? 'FAILED (refund)'
+                            : (ord.status === 'PROCESSING' || ord.status === 'SUBMITTED')
+                              ? 'PROCESSING'
+                              : ord.dispatched
+                                ? 'DELIVERED'
+                                : (ord.verifiedPaid ? 'PAID' : (ord.status || 'PENDING'))}
                         </span>
                       </div>
                       <div className="text-[11px] text-gray-400 font-mono mt-1 flex flex-wrap items-center gap-2">
